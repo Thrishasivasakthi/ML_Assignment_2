@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------
+# requirements.txt  -  ML Assignment 2 (M.Tech AIML)
+#
+# Every package actually imported by this project is listed.  The spec
+# warns that "missing dependencies are the #1 cause of deployment
+# failure", so each entry below names the file that needs it.
+#
+# Ranges use a floor of the version we developed against and a ceiling
+# at the next major release: strict == pins can fail to resolve on
+# Streamlit Community Cloud's Python build, while open-ended >= can
+# pull a future breaking major.
+# ---------------------------------------------------------------------
+
+# Web framework - app.py
+streamlit>=1.36,<2
+
+# The five classifiers and all six evaluation metrics - train.py, app.py
+scikit-learn>=1.5,<2
+
+# DataFrames - train.py, app.py, config.py
+pandas>=2.0,<3
+
+# Required by pandas / scikit-learn; declared explicitly so the
+# dependency is never resolved away
+numpy>=1.26,<3
+
+# Confusion-matrix figures written to figures/ - train.py
+matplotlib>=3.8,<4
+
+# Serialising the trained models and the fitted preprocessor -
+# shipped with scikit-learn but imported directly, so listed on its own
+joblib>=1.4,<2

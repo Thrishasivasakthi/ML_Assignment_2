@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Streamlit - never commit secrets
+.streamlit/secrets.toml
+
+# Download artifacts - already extracted into raw/
+uci_download.zip
+
+# Course assignment brief - reference only, not part of the deliverable
+*.pdf
