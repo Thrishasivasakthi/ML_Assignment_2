@@ -12,7 +12,26 @@ If that logic is copy-pasted into both files it will eventually drift
 apart, and the Streamlit app will silently produce WRONG predictions
 (no crash, just garbage metrics). Importing one shared module is the
 cheap insurance policy.
+
+This module is therefore imported FIRST by every entry point, so the
+environment fix below runs before joblib is used.
 """
+
+# ---------------------------------------------------------------------------
+# Environment fix - must run before joblib/loky first counts CPU cores.
+#
+# Windows 11 removed `wmic`, which loky shells out to.  The probe raises,
+# gets caught, and prints a 2 KB traceback to stderr.  Results are
+# unaffected but the noise pollutes the Streamlit logs and the BITS Lab
+# screenshot.  Seeding loky's cache short-circuits the probe entirely.
+# ---------------------------------------------------------------------------
+import os as _os
+
+from joblib.externals.loky.backend import context as _loky_ctx
+
+if getattr(_loky_ctx, "physical_cores_cache", None) is None:
+    _loky_ctx.physical_cores_cache = _os.cpu_count() or 4
+# ---------------------------------------------------------------------------
 
 # ---------------------------------------------------------------- target
 TARGET = "Revenue"

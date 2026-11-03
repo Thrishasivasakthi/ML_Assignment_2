@@ -18,18 +18,24 @@ Fitting the scaler on the whole dataset would leak test-set means and
 standard deviations into training, producing optimistically biased scores.
 """
 
-import os
 import warnings
 from pathlib import Path
 
-# Windows 11 removed `wmic`, which joblib/loky shells out to when it counts
-# physical cores.  The probe raises, gets caught, and prints a 2KB traceback
-# to stderr (results are unaffected, but it pollutes logs and the BITS Lab
-# screenshot).  Seeding loky's cache up front skips the probe entirely.
-from joblib.externals.loky.backend import context as _loky_ctx
-
-if getattr(_loky_ctx, "physical_cores_cache", None) is None:
-    _loky_ctx.physical_cores_cache = os.cpu_count() or 4
+# config is imported FIRST on purpose: it installs the joblib/loky
+# environment fix (Windows 11 removed `wmic`) before anything below
+# touches joblib.  See the comment at the top of config.py.
+from config import (
+    CATEGORICAL_FEATURES,
+    FEATURES,
+    METRIC_KEYS,
+    MODEL_KEYS,
+    MODEL_LABELS,
+    NUMERIC_FEATURES,
+    RANDOM_STATE,
+    TARGET,
+    TEST_SIZE,
+    prepare_features,
+)
 
 import joblib
 import matplotlib
@@ -50,19 +56,6 @@ from sklearn.metrics import (
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
-from config import (
-    CATEGORICAL_FEATURES,
-    FEATURES,
-    METRIC_KEYS,
-    MODEL_KEYS,
-    MODEL_LABELS,
-    NUMERIC_FEATURES,
-    RANDOM_STATE,
-    TARGET,
-    TEST_SIZE,
-    prepare_features,
-)
 
 warnings.filterwarnings("ignore")
 
