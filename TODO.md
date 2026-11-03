@@ -127,46 +127,72 @@
 
 ## Phase 3 — GitHub repository (Day 3–4)
 
-- [ ] **3.1** Create the exact required structure:
+- [x] **3.1** Required structure created — local repo initialised on branch **`main`**:
   ```
   project-folder/
-  ├── app.py              (or streamlit_app.py)
-  ├── requirements.txt
-  ├── README.md
-  ├── test_data.csv
-  ├── model/              (5 × .joblib)
-  ├── train.py            (or .ipynb) — your source code
-  └── scaler/ or artifacts/ (preprocessing objects)
+  ├── app.py              ← Phase 4 (pending)
+  ├── requirements.txt    ✅
+  ├── README.md           ← Phase 6 (pending)
+  ├── test_data.csv       ✅  2,441 × 18
+  ├── model/              ✅  5 × .joblib
+  ├── config.py           ✅  shared config (own naming)
+  ├── train.py            ✅  source code
+  ├── artifacts/          ✅  preprocessor.joblib
+  ├── figures/            ✅  5 confusion matrices
+  └── raw/                ✅  source dataset
   ```
-- [ ] **3.2** Write `requirements.txt` — at minimum:
+- [x] **3.2** `requirements.txt` written — **6 packages, all actually imported**:
+  `streamlit`, `scikit-learn`, `pandas`, `numpy`, `matplotlib`, `joblib`
+  - Each entry names the file that needs it; floor/ceiling ranges so Streamlit Cloud can always resolve
+  - `seaborn` deliberately **omitted** — we use sklearn's `ConfusionMatrixDisplay`, so it would be an unused dependency
+  - *(PDF: "Missing dependencies are the #1 cause of deployment failure")*
+- [x] **3.3** **3 meaningful commits** made (history is reviewed):
   ```
-  streamlit
-  scikit-learn
-  numpy
-  pandas
-  matplotlib
-  seaborn
-  joblib
+  2fef9f9  chore: project scaffolding - requirements.txt and gitignore
+  d89623e  feat: shared config and preprocessing pipeline
+  f53b54c  feat: train and evaluate five classifiers
   ```
-  *(PDF: "Missing dependencies are the #1 cause of deployment failure")*
-- [ ] **3.3** Make **multiple meaningful commits** (commit history is reviewed)
-- [ ] **3.4** Use your **own variable/function/file names** — identical structure + variable names across students gets flagged
-- [ ] **3.5** Push to GitHub, verify the repo link opens
+  *(further commits land with Phase 4 and Phase 6 — the history shows real incremental development)*
+- [x] **3.4** Own naming throughout — `config.py` / `prepare_features()` / `NUMERIC_FEATURES` / `build_models()`, plus a distinctive repo name rather than a generic `ml-assignment-2`
+- [x] **3.5** **PUSHED & VERIFIED** → https://github.com/Thrishasivasakthi/ML_Assignment_2
+  - Branch `main`, local == remote at `f53b54c`, **20 tracked files**
+  - Auth fixed by purging a stale `git-credential` entry so Git Credential Manager re-prompted
+  - ⏳ Still to add: `app.py` (Phase 4) and `README.md` (Phase 6) — each gets its own commit
+  - ✅ Repo is **public** (required by Streamlit Community Cloud free tier)
 
 ---
 
-## Phase 4 — Streamlit app (Day 4–5) · 4 marks
+## Phase 4 — Streamlit app (Day 4–5) · 4 marks ✅ **COMPLETE**
 
-- [ ] **4.1** `st.file_uploader("Upload test CSV", type="csv")` — **test data only** (free tier has limited capacity)
-- [ ] **4.2** `st.selectbox("Select Model", [...])` — dropdown across all 5 saved models
-- [ ] **4.3** Load the **saved** model + scaler with `joblib.load`
-- [ ] **4.4** Transform the uploaded CSV → **predict** → **compute metrics against the CSV's target column**
-- [ ] **4.5** **DO NOT retrain** in the app — spec explicitly says: *"load the saved model, calculate the evaluation metrics, and display the results without retraining"*
-- [ ] **4.6** Display the **6 evaluation metrics** (table or cards)
-- [ ] **4.7** Display a **confusion matrix** (st.bar_chart / plotly / matplotlib) **or** classification report
-- [ ] **4.8** Validate the uploaded CSV has required columns → friendly `st.error()` if not
-- [ ] **4.9** **Customize the UI** — sidebars, headings, colors, your own layout. *Copy-paste Streamlit templates without customization may be penalized.*
-- [ ] **4.10** Test locally: `streamlit run app.py`
+- [x] **4.1** `st.file_uploader(...)` — **test data only**, CSV, in the sidebar ✅ **tested with a real file upload**
+- [x] **4.2** `st.selectbox` across all 5 saved models ✅ (renders + bound to `models[selected_key]`)
+- [x] **4.3** Loads **saved** model + preprocessor via `joblib.load`, cached with `st.cache_resource`
+- [x] **4.4** Transform → predict → score against the CSV's target column ✅
+- [x] **4.5** **NO retraining** — zero `.fit()` calls in `app.py` ✅
+  - **Proven:** all **30 metrics** (5 models × 6) from the app reproduce `train.py`'s `metrics.csv` **exactly**
+- [x] **4.6** All **6 evaluation metrics** displayed as custom cards ✅
+- [x] **4.7** **Confusion matrix** (custom HTML grid) **+** classification report ✅
+- [x] **4.8** Column validation → friendly `st.error()` listing exactly what's missing ✅
+- [x] **4.9** **Customised UI** — hand-rolled CSS: gradient hero, metric cards, styled confusion matrix, pills, tooltips. *No stock template.*
+- [x] **4.10** Tested locally — `streamlit run app.py`, **HTTP 200, no errors in log**
+
+### Extra (beyond the spec, directly required by it)
+- [x] **"Results of different models on your test data should be visible"** → **all-five-models comparison table**, max/min highlighted per column
+- [x] "How to read these numbers" explainer for the six metrics
+- [x] Bundled-data shortcut so an examiner can demo the app without downloading anything
+
+### 🧪 Test evidence
+| Test | Result |
+|---|---|
+| Syntax + import | ✅ |
+| Headless launch, HTTP 200 | ✅ |
+| CSV upload → 2,441 rows / 17 features / 382 purchasers | ✅ |
+| Six metric cards match `metrics.csv` | ✅ |
+| All 30 metrics match `train.py` exactly | ✅ **zero drift** |
+| Confusion matrix + classification report render | ✅ |
+| All-five-models table renders | ✅ |
+| `train.py` after refactor | ✅ exit 0, **stderr 0 bytes** |
+| Model dropdown switching | ⚠️ not automatable — **verify by hand** (2 clicks) |
 
 ---
 
