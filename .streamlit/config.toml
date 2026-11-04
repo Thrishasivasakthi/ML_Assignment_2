@@ -1,0 +1,36 @@
+# ---------------------------------------------------------------------------
+# Streamlit theme + client configuration.
+#
+# This file is the single biggest lever on "does the app look like default
+# Streamlit?".  Custom CSS can restyle content, but the sidebar, buttons,
+# selectbox, file uploader and page chrome are all drawn by Streamlit - only
+# this theme block reaches them.
+#
+# Committed on purpose (unlike secrets.toml) so the deployed app matches
+# what we tested locally.
+# ---------------------------------------------------------------------------
+
+[theme]
+# Accent: deep teal.  Deliberately NOT indigo/violet/blue - those are the
+# default palette of every generated Streamlit app and read as unoriginal.
+primaryColor = "#0F766E"
+
+# Warm-neutral page rather than pure white, so white cards can sit on it
+# and still be defined by a hairline border.
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F7F8FA"   # sidebar, inputs, code blocks
+textColor = "#111827"
+
+# Valid values are "sans-serif", "serif", "monospace" (note the hyphens -
+# "sans" is invalid and silently falls back). Body and widget text stay
+# sans; display headlines are switched to a serif stack in app.py CSS so
+# the page reads editorial rather than dashboard-generic.
+font = "sans-serif"
+
+[client]
+# Shrinks the "Deploy" + hamburger clutter in the header so the page reads
+# as a purpose-built product rather than a stock Streamlit shell.
+toolbarMode = "minimal"
+
+[browser]
+gatherUsageStats = false
