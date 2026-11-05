@@ -306,6 +306,23 @@ def main():
             f"test={results.loc[label, 'accuracy']:.4f}  gap={gap:+.4f}{flag}"
         )
 
+    # RETAIN the training scores.  Previously they were printed and lost, so
+    # the "+0.1450 Decision Tree gap" quoted in README section d had no file
+    # behind it.  Writing them next to metrics.csv means the claim can be
+    # checked from the repository instead of taken on trust, and the test
+    # column is read back from metrics.csv rather than recomputed - if the
+    # two ever disagreed, the file would show it immediately.
+    overfit = pd.DataFrame(
+        {
+            "model": [MODEL_LABELS[k] for k in MODEL_KEYS],
+            "train_accuracy": [train_accs[MODEL_LABELS[k]] for k in MODEL_KEYS],
+            "test_accuracy": [results.loc[MODEL_LABELS[k], "accuracy"] for k in MODEL_KEYS],
+        }
+    )
+    overfit["gap"] = overfit["train_accuracy"] - overfit["test_accuracy"]
+    overfit.to_csv(BASE_DIR / "train_scores.csv", index=False)
+    print(f"\n  retained -> train_scores.csv ({len(overfit)} rows)")
+
     # ---------------- requirement checks -----------------------------
     print()
     print("=" * 74)
