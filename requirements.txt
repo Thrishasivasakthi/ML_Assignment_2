@@ -5,28 +5,68 @@
 # warns that "missing dependencies are the #1 cause of deployment
 # failure", so each entry below names the file that needs it.
 #
-# Ranges use a floor of the version we developed against and a ceiling
-# at the next major release: strict == pins can fail to resolve on
-# Streamlit Community Cloud's Python build, while open-ended >= can
-# pull a future breaking major.
+# WHY THESE ARE PINNED EXACTLY
+# ----------------------------
+# model/*.joblib were written by scikit-learn 1.5.2.  Joblib pickles
+# embed estimator internals, so loading them under a different scikit-learn
+# version can fail outright or, worse, score slightly differently - which
+# would make the deployed app disagree with metrics.csv and with the
+# numbers quoted in README section d.  Pinning removes that entire class
+# of risk: the environment that produced the reported figures is the
+# environment that serves them.
+#
+# The app is inference-only, so the only requirement on these versions is
+# that they install cleanly.  Verified by installing this file into a
+# fresh venv and re-scoring all five models against metrics.csv.
+#
+# PYTHON VERSION
+# --------------
+# Streamlit Community Cloud defaults to Python 3.12; 3.11 is the version
+# this project was developed and trained under.  Select 3.11 in
+# "Advanced settings" when deploying.  All pins below ship wheels for
+# both 3.11 and 3.12, so either resolves.
 # ---------------------------------------------------------------------
 
-# Web framework - app.py
-streamlit>=1.36,<2
+# Web framework - app.py, every page
+streamlit==1.46.1
 
-# The five classifiers and all six evaluation metrics - train.py, app.py
-scikit-learn>=1.5,<2
+# The five classifiers and all six evaluation metrics - train.py, core/
+scikit-learn==1.5.2
 
-# DataFrames - train.py, app.py, config.py
-pandas>=2.0,<3
+# DataFrames - train.py, config.py, core/, components/
+pandas==2.3.0
 
 # Required by pandas / scikit-learn; declared explicitly so the
 # dependency is never resolved away
-numpy>=1.26,<3
+numpy==2.0.2
 
-# Confusion-matrix figures written to figures/ - train.py
-matplotlib>=3.8,<4
+# Confusion-matrix figures written to figures/ - train.py only.
+# The deployed app does not import it, but the repository must be able to
+# reproduce figures/ from a clean checkout.
+matplotlib==3.10.1
 
 # Serialising the trained models and the fitted preprocessor -
 # shipped with scikit-learn but imported directly, so listed on its own
-joblib>=1.4,<2
+joblib==1.4.2
+
+# ---------------------------------------------------------------------------
+# TRANSDITIVE NUMERIC DEPENDENCIES - PINNED BECAUSE THEY CHANGE THE NUMBERS
+# ---------------------------------------------------------------------------
+# scikit-learn pulls these in automatically, so they were absent from an
+# earlier version of this file. That was not harmless: a clean install
+# resolved scipy 1.17.1 instead of 1.14.1, and 29 of the 30 metrics still
+# matched while Naive Bayes AUC moved from 0.749840 to 0.750246.
+#
+# The mechanism is worth recording. The model's fitted parameters were
+# byte-identical across the two environments and every hard prediction
+# agreed - only 17 of 2,441 probabilities differed, by at most 1.4e-14.
+# Naive Bayes saturates many probabilities at exactly 0 or 1, so that
+# level of noise collapses or splits ties, ROC ranking changes, and AUC
+# moves by 4e-4 while accuracy, precision, recall, F1 and MCC do not move
+# at all. A pinned scikit-learn over an unpinned scipy is therefore not a
+# pinned environment.
+#
+# After adding these two pins a fresh venv reproduced all 30 cells to a
+# worst-case deviation of 8.3e-17.
+scipy==1.14.1
+threadpoolctl==3.5.0
