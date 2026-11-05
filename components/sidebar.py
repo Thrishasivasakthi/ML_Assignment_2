@@ -1,0 +1,106 @@
+"""
+components.sidebar - the shared control rail.
+
+Called at the top of every page so the dataset and the selected classifier
+are identical wherever the user navigates.
+
+Two pieces of cross-page state live here:
+
+    st.session_state["df"]             the loaded dataset
+    st.session_state["source_name"]    where it came from
+    st.session_state["selected_model"] which classifier is under inspection
+
+Streamlit's session_state is per-SESSION, not per-page, so a value written
+on Overview is still present on Methodology.  That is exactly why the
+bundled-CSV button must write into session_state rather than a local
+variable: st.button returns True for exactly one run, and without this the
+dataset would vanish the moment any other widget was touched.
+"""
+
+import pandas as pd
+import streamlit as st
+
+from components.layout import chip, eyebrow, rule
+from config import MODEL_KEYS, MODEL_LABELS
+from core.inference import BUNDLED_TEST_CSV
+from core.validation import validate_dataset
+
+BUNDLED_SOURCE = "test_data.csv (bundled)"
+
+
+def render_sidebar():
+    """Render the shared sidebar.  Returns (df, source_name, selected_key)."""
+    with st.sidebar:
+        st.markdown(eyebrow("Dataset"), unsafe_allow_html=True)
+        uploaded = st.file_uploader(
+            "Test dataset (CSV)",
+            type=["csv"],
+            key="dataset_uploader",
+            help="test_data.csv from the repository: all 17 feature columns "
+                 "plus the Revenue target column.",
+        )
+        use_bundled = st.button(
+            "Use bundled test_data.csv",
+            key="use_bundled_button",
+            use_container_width=True,
+            help="Loads the copy shipped with the repository so the app can be "
+                 "demonstrated without downloading anything first.",
+        )
+
+        # ------------------------------------------------ load / persist
+        if uploaded is not None:
+            if st.session_state.get("source_name") != uploaded.name:
+                try:
+                    st.session_state["df"] = pd.read_csv(uploaded)
+                    st.session_state["source_name"] = uploaded.name
+                except Exception as exc:
+                    st.error(f"Could not read that CSV: `{exc}`")
+        elif use_bundled and BUNDLED_TEST_CSV.exists():
+            if st.session_state.get("source_name") != BUNDLED_SOURCE:
+                st.session_state["df"] = pd.read_csv(BUNDLED_TEST_CSV)
+                st.session_state["source_name"] = BUNDLED_SOURCE
+
+        df = st.session_state.get("df")
+        source_name = st.session_state.get("source_name")
+
+        # ------------------------------------------------ validation flag
+        if df is None:
+            st.caption("No dataset loaded yet.")
+        else:
+            problems = validate_dataset(df)
+            if problems:
+                st.warning(
+                    f"**{len(problems)} problem(s)** - open Data Workspace "
+                    "for details."
+                )
+            else:
+                st.success(f"Validated - {len(df):,} rows")
+
+        st.markdown(rule(), unsafe_allow_html=True)
+        st.markdown(eyebrow("Classifier"), unsafe_allow_html=True)
+
+        # Pre-seed rather than passing index= alongside key=, which Streamlit
+        # treats as a conflict once the key already holds a value.
+        if "selected_model" not in st.session_state:
+            st.session_state["selected_model"] = "svm"
+        selected_key = st.selectbox(
+            "Model",
+            options=MODEL_KEYS,
+            format_func=lambda k: MODEL_LABELS[k],
+            key="selected_model",
+            label_visibility="collapsed",
+            help="Which saved classifier to evaluate. Loading a model never "
+                 "retrains it.",
+        )
+
+        st.markdown(rule(), unsafe_allow_html=True)
+        st.markdown(
+            eyebrow("Mode")
+            + '<div style="font-size:.82rem;color:#374151;margin-top:.5rem">'
+            "<b>Inference only.</b> Models and the preprocessor were fitted "
+            f"once by {chip('train.py')}. This page only loads, transforms "
+            "and scores.</div>",
+            unsafe_allow_html=True,
+        )
+
+    return df, source_name, selected_key
