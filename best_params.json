@@ -1,0 +1,116 @@
+{
+  "search": {
+    "scoring": "f1",
+    "cv_folds": 5,
+    "cv_splitter": "StratifiedKFold(n_splits=5, shuffle=True, random_state=42)",
+    "searched_on": "X_train_t only - the held-out set is never seen",
+    "grids": {
+      "logistic_regression": {
+        "C": [
+          0.01,
+          0.1,
+          1.0,
+          10.0
+        ],
+        "class_weight": [
+          null,
+          "balanced"
+        ],
+        "max_iter": [
+          2000
+        ]
+      },
+      "decision_tree": {
+        "max_depth": [
+          3,
+          5,
+          8,
+          null
+        ],
+        "min_samples_leaf": [
+          1,
+          5,
+          20
+        ],
+        "class_weight": [
+          null,
+          "balanced"
+        ]
+      },
+      "knn": {
+        "n_neighbors": [
+          3,
+          5,
+          9,
+          15,
+          25
+        ],
+        "weights": [
+          "uniform",
+          "distance"
+        ]
+      },
+      "naive_bayes": {
+        "var_smoothing": [
+          1e-09,
+          1e-08,
+          1e-07,
+          1e-06,
+          1e-05,
+          0.0001,
+          0.001,
+          0.01,
+          0.1,
+          1.0
+        ]
+      },
+      "svm": {
+        "C": [
+          0.5,
+          1.0,
+          5.0
+        ],
+        "gamma": [
+          "scale",
+          0.01,
+          0.001
+        ],
+        "class_weight": [
+          null,
+          "balanced"
+        ]
+      }
+    }
+  },
+  "best_params": {
+    "logistic_regression": {
+      "C": 0.01,
+      "class_weight": "balanced",
+      "max_iter": 2000
+    },
+    "decision_tree": {
+      "class_weight": null,
+      "max_depth": 5,
+      "min_samples_leaf": 20
+    },
+    "knn": {
+      "n_neighbors": 3,
+      "weights": "uniform"
+    },
+    "naive_bayes": {
+      "var_smoothing": 0.1
+    },
+    "svm": {
+      "C": 5.0,
+      "class_weight": "balanced",
+      "gamma": 0.01
+    }
+  },
+  "cv_f1": {
+    "logistic_regression": 0.6195428789760233,
+    "decision_tree": 0.6442821607271405,
+    "knn": 0.4793641942855558,
+    "naive_bayes": 0.5165703344963057,
+    "svm": 0.6547759928583365
+  }
+}
