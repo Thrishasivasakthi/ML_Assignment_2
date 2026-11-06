@@ -154,6 +154,8 @@ misleading, which is precisely the situation in which the required metric set
 | `train_scores.csv` | Train vs test accuracy for both runs — the source of the `+0.1450` Decision Tree gap quoted below |
 | `figures/` | Five confusion-matrix plots |
 | `requirements.txt` | Every imported package, exact-pinned |
+| `.gitattributes` | Line-ending policy: text stored as LF, CSVs checked out as LF everywhere, joblib and PNG never touched |
+| `.gitignore` | Keeps `__pycache__/`, `uci_download.zip`, the brief and the working notes out of the repository |
 | `.streamlit/config.toml` | Theme and toolbar configuration |
 
 ---

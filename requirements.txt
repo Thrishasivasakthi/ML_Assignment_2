@@ -50,7 +50,7 @@ matplotlib==3.10.1
 joblib==1.4.2
 
 # ---------------------------------------------------------------------------
-# TRANSDITIVE NUMERIC DEPENDENCIES - PINNED BECAUSE THEY CHANGE THE NUMBERS
+# TRANSITIVE NUMERIC DEPENDENCIES - PINNED BECAUSE THEY CHANGE THE NUMBERS
 # ---------------------------------------------------------------------------
 # scikit-learn pulls these in automatically, so they were absent from an
 # earlier version of this file. That was not harmless: a clean install

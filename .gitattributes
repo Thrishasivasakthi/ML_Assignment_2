@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# .gitattributes - one line-ending policy, so a checkout looks the same
+# everywhere it is opened.
+#
+# WHY THIS FILE IS HERE
+# ---------------------
+# Until it existed, line endings depended on whoever last touched the file:
+# core.autocrlf defaults to true on Windows and to unset on Linux, so the
+# bytes git stored were correct by luck rather than by rule.  Two things
+# depend on those bytes.
+#
+#   1. Streamlit Community Cloud clones on Linux.  It serves whatever is
+#      in the object database, so a discrepancy would show up as the
+#      deployed app differing from the machine that produced it.
+#   2. test_data.csv and train_data.csv are the held-out split.  They are
+#      required to be byte-identical in content, and that claim is only
+#      checkable if the policy for writing them is written down.
+#
+# WHAT EACH RULE DOES
+# -------------------
+# `* text=auto` lets git detect text and store it as LF in the object
+# database, while still converting on checkout for ordinary source.  Files
+# git detects as binary (anything with NUL bytes in the first 8 KB) are
+# left completely alone, so this rule cannot corrupt an artifact.
+#
+# The CSV rule is stricter on purpose: stored LF AND checked out LF, on
+# every platform.  A data file's bytes should not depend on the OS of the
+# person who happened to clone it.
+#
+# The binary rules are belt-and-braces.  They are redundant with text=auto
+# today; they exist so that a future rule cannot quietly start rewriting a
+# pickled model or a figure.
+# ---------------------------------------------------------------------------
+
+* text=auto
+
+# Data files: LF in the repository and LF on disk, everywhere.
+*.csv text eol=lf
+
+# Never normalize these, under any circumstances.
+*.joblib binary
+*.png binary
+*.zip binary
