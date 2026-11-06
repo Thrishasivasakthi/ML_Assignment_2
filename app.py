@@ -171,11 +171,14 @@ with right:
     )
     report_table(y_true, y_pred)
 
+# One caption only. The confusion block already prints its own line beneath
+# the matrix (correct / false alarms / missed purchases), so a second
+# caption here restated the same four numbers in a different order and
+# pushed the section down for no new information.
 st.caption(
-    f"**{tp:,}** true positives and **{tn:,}** true negatives; "
-    f"**{fp:,}** false alarms and **{fn:,}** real purchasers missed. "
     f"On a {summary['conversion_rate'] * 100:.1f}% positive class the second "
-    "pair is what costs money."
+    f"pair - **{fp:,}** false alarms and **{fn:,}** real purchasers missed - "
+    "is what costs money; the first pair is what the model was asked to find."
 )
 
 # ------------------------------------------------------- 03 all five models
@@ -189,7 +192,7 @@ comparison_bars(frame, selected_key, bar_metric)
 
 st.markdown(
     '<div class="s2s-eyebrow" style="margin:1.6rem 0 .8rem">'
-    "Full comparison &mdash; best in green, weakest in red</div>",
+    "Full comparison</div>",
     unsafe_allow_html=True,
 )
 comparison_table(frame, selected_key)

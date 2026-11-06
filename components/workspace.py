@@ -33,7 +33,7 @@ from components.sidebar import render_sidebar
 from config import FEATURES, MODEL_KEYS, MODEL_LABELS, TARGET
 from core.evaluation import comparison_frame, score_all
 from core.facts import dataset_facts as collect_facts
-from core.inference import BASE_DIR, load_artifacts
+from core.inference import BASE_DIR, PREPROCESSOR_PATH, load_artifacts, model_path
 from core.validation import dataset_summary, validate_dataset
 
 _ARTIFACTS = None
@@ -167,9 +167,9 @@ def open_workspace(validate=True):
     if df is None:
         empty_state(
             "Upload <b>test_data.csv</b> from the panel on the left, or click "
-            "<b>Use bundled test_data.csv</b> to load the copy that ships with "
-            "this repository. The upload stays loaded while you move between "
-            "pages."
+            "<b>Reset to bundled test_data.csv</b> to load the copy that ships "
+            "with this repository. The upload stays loaded while you move "
+            "between pages."
         )
         st.stop()
 
@@ -195,6 +195,7 @@ def evaluate_all(df):
     Returns a dict:
         metrics     {key: {metric: float} | None}
         preds       {key: array | None}
+        probas      {key: array | None}   probability of class 1
         y_true      the ground-truth labels
         comparison  wide DataFrame indexed by model KEY
         summary     row/feature/class counts
@@ -202,15 +203,35 @@ def evaluate_all(df):
 
     A model that raises yields None rather than NaN, so one broken row
     cannot silently poison the comparison table - the UI shows an em dash.
+
+    The heavy part is cached on two things: the CONTENTS of the dataframe
+    (st.cache_data hashes a DataFrame by value, so a different file is a
+    different key while a page change is not) and the mtime+size of the
+    saved models.  The second argument matters because the cache is keyed on
+    arguments only - without it, retraining while the server is up would
+    leave the app serving the previous run's numbers until someone
+    restarted it.
     """
+    stamp = _files_stamp(
+        PREPROCESSOR_PATH, *[model_path(key) for key in MODEL_KEYS]
+    )
+    return _score_dataset(df, stamp)
+
+
+@st.cache_data(show_spinner=False)
+def _score_dataset(df, artifact_stamp):
+    """The single scoring path.  See evaluate_all() for the cache rationale."""
     preprocessor, models = get_artifacts()
     y_true = df[TARGET].astype(int).values
 
-    metrics, preds = score_all(models, preprocessor, df, y_true, MODEL_KEYS)
+    metrics, preds, probas = score_all(
+        models, preprocessor, df, y_true, MODEL_KEYS
+    )
 
     return {
         "metrics": metrics,
         "preds": preds,
+        "probas": probas,
         "y_true": y_true,
         "comparison": comparison_frame(metrics, MODEL_KEYS),
         "summary": dataset_summary(df),

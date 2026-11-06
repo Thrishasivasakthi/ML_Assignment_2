@@ -12,7 +12,7 @@ which is the sort of chart that invites awkward questions in a submission.
 
 import streamlit as st
 
-from components.charts import comparison_bars, metric_selector, ranking_list
+from components.charts import comparison_bars, metric_selector, ranking_list, roc_overlay
 from components.layout import page_header, rule, section, stat_strip
 from components.notes import metric_disagreement
 from components.tables import comparison_table, metric_leaders_table
@@ -76,11 +76,35 @@ st.markdown(
     section(
         "03",
         "Full comparison",
-        "six metrics, best in green and weakest in red",
+        "six metrics; extremes marked on accuracy, AUC, F1 and MCC",
     ),
     unsafe_allow_html=True,
 )
 comparison_table(frame, selected_key)
+
+st.download_button(
+    "Download this comparison table (CSV)",
+    data=frame.rename(index=MODEL_LABELS).to_csv(),
+    file_name="session2shop_comparison.csv",
+    mime="text/csv",
+    key="download_comparison_csv",
+    help="The six metrics for all five classifiers exactly as printed above. "
+         "It is written from the same in-memory frame, so the file cannot "
+         "differ from the table on screen.",
+)
+
+st.markdown(
+    '<div class="s2s-eyebrow" style="margin:1.5rem 0 .7rem">'
+    "ROC curves &mdash; all five on the same axes</div>",
+    unsafe_allow_html=True,
+)
+roc_overlay(result, selected_key)
+st.caption(
+    "Every curve is drawn from the same probabilities the six metrics were "
+    "computed from, so the AUC in the legend and the AUC in the table above "
+    "are the same number. The dashed diagonal is the line a random ranker "
+    "would follow."
+)
 
 st.markdown(rule(), unsafe_allow_html=True)
 

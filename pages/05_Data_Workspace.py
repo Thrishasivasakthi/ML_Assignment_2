@@ -45,7 +45,7 @@ if df is None:
         '<div class="s2s-empty">'
         '<div class="s2s-eyebrow">No dataset loaded</div>'
         "<p>Use the panel on the left: either drop in a CSV, or click "
-        "<b>Use bundled test_data.csv</b> to load the copy that ships with "
+        "<b>Reset to bundled test_data.csv</b> to load the copy that ships with "
         "this repository. The file must contain all 17 feature columns plus "
         f"the <b>{TARGET}</b> target column.</p>"
         "</div>",

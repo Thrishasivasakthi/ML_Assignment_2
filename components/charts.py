@@ -16,6 +16,80 @@ from config import METRIC_KEYS, MODEL_KEYS, MODEL_LABELS
 EM_DASH = "&mdash;"
 
 
+def roc_overlay(result, selected_key):
+    """All five ROC curves on one set of axes, selected model emphasised.
+
+    ROC is drawn from the probabilities computed alongside the metrics rather
+    than from a second scoring pass, so the AUC printed in the legend is the
+    same number the comparison table prints.  Two colours only - accent teal
+    for the classifier under inspection, slate for the field - because five
+    competing hues would say nothing about which line is which; the legend
+    carries the model names and their AUC.
+    """
+    probas = result.get("probas") or {}
+    y_true = result["y_true"]
+    available = [k for k in MODEL_KEYS if probas.get(k) is not None]
+
+    if not available:
+        st.caption(
+            "No classifier produced probabilities on this dataset, so there "
+            "is no curve to draw."
+        )
+        return
+    if len(set(y_true)) < 2:
+        st.caption(
+            "ROC is undefined when only one class is present in the loaded "
+            "rows, so no curve is drawn."
+        )
+        return
+
+    import matplotlib
+
+    matplotlib.use("Agg")  # headless-safe: never opens a window
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_curve
+
+    fig, ax = plt.subplots(figsize=(7.0, 4.2), dpi=140)
+    fig.patch.set_facecolor("#FFFFFF")
+    ax.set_facecolor("#FFFFFF")
+
+    # What a random ranker would achieve - the reference every curve is read
+    # against, so a curve that hugs it is visibly worthless.
+    ax.plot([0, 1], [0, 1], linestyle="--", linewidth=1, color="#CBD5E1")
+
+    for key in MODEL_KEYS:
+        if key not in available:
+            continue
+        fpr, tpr, _ = roc_curve(y_true, probas[key])
+        auc = float(result["metrics"][key]["auc"])
+        if key == selected_key:
+            ax.plot(fpr, tpr, color="#0F766E", lw=2.6, zorder=3,
+                    label=f"{MODEL_LABELS[key]}  {auc:.4f}")
+        else:
+            ax.plot(fpr, tpr, color="#94A3B8", lw=1.4, alpha=0.95, zorder=2,
+                    label=f"{MODEL_LABELS[key]}  {auc:.4f}")
+
+    ax.set_xlim(0.0, 1.0)
+    ax.set_ylim(0.0, 1.0)
+    ax.set_xlabel("False positive rate", fontsize=9, color="#6B7280")
+    ax.set_ylabel("True positive rate", fontsize=9, color="#6B7280")
+    ax.grid(color="#F3F4F6", linewidth=0.8, zorder=0)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color("#E5E7EB")
+    ax.tick_params(colors="#6B7280", labelsize=8)
+    legend = ax.legend(loc="lower right", fontsize=8, frameon=False)
+    for text in legend.get_texts():
+        text.set_color("#374151")
+    ax.set_title(
+        "ROC - the classifier under inspection is drawn in teal",
+        fontsize=9.5, color="#6B7280", loc="left", pad=10,
+    )
+
+    st.pyplot(fig, clear_figure=True)
+
+
 def comparison_bars(comparison, selected_key, metric):
     """Horizontal bars for one metric; the selected model is accent-filled.
 

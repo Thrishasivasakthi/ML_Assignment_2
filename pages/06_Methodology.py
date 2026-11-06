@@ -245,13 +245,17 @@ st.markdown(
 nb_smooth = (best_params().get("best_params") or {}).get("naive_bayes", {}).get(
     "var_smoothing", float("nan")
 )
-nb_auc_after = float(frame.loc["Naive Bayes", "auc"])
-nb_mcc_after = float(frame.loc["Naive Bayes", "mcc"])
+# frame is indexed by model KEY, metrics_baseline.csv by display label - the
+# two frames are deliberately keyed differently, so the Naive Bayes row is
+# addressed through both spellings rather than one assumed to work for both.
+NB = "naive_bayes"
+nb_auc_after = float(frame.loc[NB, "auc"])
+nb_mcc_after = float(frame.loc[NB, "mcc"])
 best_mcc = float(frame["mcc"].max())
 
-if baseline is not None and "Naive Bayes" in baseline.index:
-    nb_acc_before = float(baseline.loc["Naive Bayes", "accuracy"])
-    nb_acc_after = float(frame.loc["Naive Bayes", "accuracy"])
+if baseline is not None and MODEL_LABELS[NB] in baseline.index:
+    nb_acc_before = float(baseline.loc[MODEL_LABELS[NB], "accuracy"])
+    nb_acc_after = float(frame.loc[NB, "accuracy"])
     smoothing_clause = (
         f" Raising `var_smoothing` to {nb_smooth} lifts accuracy from "
         f"{nb_acc_before:.4f} at sklearn's default to {nb_acc_after:.4f} and "

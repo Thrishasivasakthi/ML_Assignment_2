@@ -15,6 +15,15 @@ from core.evaluation import NEG_LABEL, POS_LABEL, confusion_counts, report_dict
 
 EM_DASH = "&mdash;"
 
+# Columns whose extremes get painted.  Precision and Recall are excluded on
+# purpose - see comparison_table()'s docstring.
+HIGHLIGHTED_METRICS = frozenset({"accuracy", "auc", "f1", "mcc"})
+
+# +1 means higher is better, -1 means lower is better.  All six of the
+# assignment's metrics are higher-is-better; the map exists so the table
+# stays correct if that ever stops being true.
+DIRECTION = {name: 1 for name in METRIC_LABELS}
+
 
 def confusion_block(y_true, y_pred):
     """2x2 matrix: correct cells in emerald, errors in rose."""
@@ -101,11 +110,22 @@ def metric_leaders_table(frame):
     )
 
 
-def comparison_table(comparison, selected_key, label_of=None):
+def comparison_table(comparison, selected_key, label_of=None, legend=True):
     """Six-metric table across all five models.
 
     Best value in green, weakest in red, selected row tinted.  comparison is
     indexed by model KEY; label_of maps a key to its display name.
+
+    WHICH COLUMNS GET COLOURED
+    --------------------------
+    Only accuracy, AUC, F1 and MCC.  Precision and Recall are left plain
+    because on a 15.6% positive class either one can be pushed up by simply
+    flagging more sessions as purchases - painting the extreme green would
+    reward exactly the behaviour the required metric set exists to catch.
+    Read the pair together instead, which is what the legend says.
+
+    The direction of "better" is looked up rather than assumed, so adding a
+    lower-is-better metric later cannot silently paint its worst value green.
     """
     cols = list(comparison.columns)
     head = (
@@ -115,8 +135,17 @@ def comparison_table(comparison, selected_key, label_of=None):
     )
 
     # skipna is the default, so a failed model does not poison best/worst.
-    best = {c: comparison[c].max() for c in cols}
-    worst = {c: comparison[c].min() for c in cols}
+    def extreme(column, best_side):
+        values = comparison[column].dropna()
+        if values.empty:
+            return None
+        # direction > 0 -> higher is better; < 0 -> lower is better.
+        direction = DIRECTION.get(column, 1)
+        target = values.max() if (best_side == (direction > 0)) else values.min()
+        return target
+
+    best = {c: extreme(c, True) for c in cols}
+    worst = {c: extreme(c, False) for c in cols}
 
     def name_for(key):
         if label_of:
@@ -136,9 +165,9 @@ def comparison_table(comparison, selected_key, label_of=None):
                 continue
             fv = float(v)
             k = ""
-            if fv == best[c]:
+            if c in HIGHLIGHTED_METRICS and best[c] is not None and fv == best[c]:
                 k = " best"
-            elif fv == worst[c]:
+            elif c in HIGHLIGHTED_METRICS and worst[c] is not None and fv == worst[c]:
                 k = " worst"
             cells.append(f"<td class='num{k}'>{fv:.4f}</td>")
         rows.append(f"<tr{cls}><td class='l'>{name_for(key)}</td>{''.join(cells)}</tr>")
@@ -147,3 +176,12 @@ def comparison_table(comparison, selected_key, label_of=None):
         f'<table class="s2s-tbl">{head}{"".join(rows)}</table>',
         unsafe_allow_html=True,
     )
+
+    if legend:
+        st.caption(
+            "**Green** is the best value in a column, **red** the weakest - "
+            "for Accuracy, AUC, F1 and MCC only. Precision and Recall are "
+            "left uncoloured: either can be raised on an imbalanced dataset "
+            "simply by flagging more sessions as purchases, so the pair is "
+            "meant to be read together rather than ranked."
+        )

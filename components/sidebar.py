@@ -11,10 +11,15 @@ Two pieces of cross-page state live here:
     st.session_state["model_choice"]   which classifier is under inspection
 
 Streamlit's session_state is per-SESSION, not per-page, so a value written
-on Overview is still present on Methodology.  That is exactly why the
-bundled-CSV button must write into session_state rather than a local
-variable: st.button returns True for exactly one run, and without this the
-dataset would vanish the moment any other widget was touched.
+on Overview is still present on Methodology.  That is exactly why loading
+must write into session_state rather than a local variable: st.button
+returns True for exactly one run, and without this the dataset would vanish
+the moment any other widget was touched.
+
+On a first visit with nothing in session_state the bundled test_data.csv is
+loaded automatically, so the app opens on real numbers instead of an empty
+rail; the file that ends up loaded is always shown in the page's stat strip
+by name, and the reset button returns to it from any uploaded file.
 
 One caveat, discovered by testing rather than reading: a key passed to
 selectbox(key=...) does NOT make the same journey.  The dataset survived
@@ -39,6 +44,24 @@ def render_sidebar():
     """Render the shared sidebar.  Returns (df, source_name, selected_key)."""
     with st.sidebar:
         st.markdown(eyebrow("Dataset"), unsafe_allow_html=True)
+
+        # The reset control sits ABOVE the uploader on purpose.  To clear an
+        # upload you have to empty the uploader's own widget key, and
+        # Streamlit refuses that once the widget has been instantiated in
+        # this run - so the button has to be rendered first.
+        reset = st.button(
+            "Reset to bundled test_data.csv",
+            key="use_bundled_button",
+            use_container_width=True,
+            help="Clears any uploaded file and returns to the copy shipped "
+                 "with the repository.",
+        )
+        if reset:
+            st.session_state["dataset_uploader"] = None
+            if BUNDLED_TEST_CSV.exists():
+                st.session_state["df"] = pd.read_csv(BUNDLED_TEST_CSV)
+                st.session_state["source_name"] = BUNDLED_SOURCE
+
         uploaded = st.file_uploader(
             "Test dataset (CSV)",
             type=["csv"],
@@ -46,13 +69,13 @@ def render_sidebar():
             help="test_data.csv from the repository: all 17 feature columns "
                  "plus the Revenue target column.",
         )
-        use_bundled = st.button(
-            "Use bundled test_data.csv",
-            key="use_bundled_button",
-            use_container_width=True,
-            help="Loads the copy shipped with the repository so the app can be "
-                 "demonstrated without downloading anything first.",
-        )
+
+        # FIRST VISIT: load the bundled file so the app is usable the moment
+        # it opens, instead of presenting an empty rail and a dead page.
+        # An upload below still takes precedence on later runs.
+        if st.session_state.get("df") is None and BUNDLED_TEST_CSV.exists():
+            st.session_state["df"] = pd.read_csv(BUNDLED_TEST_CSV)
+            st.session_state["source_name"] = BUNDLED_SOURCE
 
         # ------------------------------------------------ load / persist
         if uploaded is not None:
@@ -62,10 +85,6 @@ def render_sidebar():
                     st.session_state["source_name"] = uploaded.name
                 except Exception as exc:
                     st.error(f"Could not read that CSV: `{exc}`")
-        elif use_bundled and BUNDLED_TEST_CSV.exists():
-            if st.session_state.get("source_name") != BUNDLED_SOURCE:
-                st.session_state["df"] = pd.read_csv(BUNDLED_TEST_CSV)
-                st.session_state["source_name"] = BUNDLED_SOURCE
 
         df = st.session_state.get("df")
         source_name = st.session_state.get("source_name")

@@ -63,28 +63,31 @@ def report_dict(y_true, y_pred):
 
 
 def score_one(model, preprocessor, df, y_true):
-    """Six metrics plus predictions for a single classifier."""
+    """Six metrics, predictions and probabilities for a single classifier."""
     y_pred, y_proba = predict(model, preprocessor, df)
-    return compute_metrics(y_true, y_pred, y_proba), y_pred
+    return compute_metrics(y_true, y_pred, y_proba), y_pred, y_proba
 
 
 def score_all(models, preprocessor, df, y_true, labels):
     """Score every saved classifier on the same data.
 
-    Returns ({key: metrics|None}, {key: y_pred|None}).
+    Returns ({key: metrics|None}, {key: y_pred|None}, {key: y_proba|None}).
 
     A model that fails yields None rather than NaN: an exception inside one
     row must not silently poison the whole comparison table.  The UI renders
-    None as an em dash and tells the user which model failed.
+    None as an em dash and tells the user which model failed.  The
+    probabilities are returned as well as the labels because ROC curves are
+    drawn from them - re-deriving them later would mean a second pass over
+    the models and a second chance for the two to disagree.
     """
-    metrics, preds = {}, {}
+    metrics, preds, probas = {}, {}, {}
     for key in labels:
         try:
-            m, p = score_one(models[key], preprocessor, df, y_true)
-            metrics[key], preds[key] = m, p
+            m, p, pr = score_one(models[key], preprocessor, df, y_true)
+            metrics[key], preds[key], probas[key] = m, p, pr
         except Exception:
-            metrics[key], preds[key] = None, None
-    return metrics, preds
+            metrics[key], preds[key], probas[key] = None, None, None
+    return metrics, preds, probas
 
 
 def comparison_frame(metrics_by_key, labels):

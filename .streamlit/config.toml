@@ -27,6 +27,12 @@ textColor = "#111827"
 # the page reads editorial rather than dashboard-generic.
 font = "sans-serif"
 
+# Pinned explicitly rather than left to Streamlit's default, which follows
+# the OS preference. A machine set to a dark OS theme would otherwise serve
+# a dark chrome around the white cards defined below, and the two would not
+# agree - the theme that was actually tested is the one that ships.
+base = "light"
+
 [client]
 # Shrinks the "Deploy" + hamburger clutter in the header so the page reads
 # as a purpose-built product rather than a stock Streamlit shell.

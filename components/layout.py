@@ -261,6 +261,43 @@ div[data-testid="stFileUploader"] {
     background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 10px;
 }
 
+/* ---------- page chrome ----------------------------------------------
+   Streamlit's block container opens with 6rem of top padding, which leaves a
+   large empty band above the masthead on a page whose first element is
+   always a header.  Pulled up so the header sits just under the toolbar;
+   the sidebar rail is tightened for the same reason.  !important because
+   Streamlit declares the same property on the same selector in <head>. */
+.block-container { padding-top: 2.6rem !important; padding-bottom: 3.5rem; }
+section[data-testid="stSidebar"] .block-container { padding-top: 1.7rem !important; }
+
+/* The uploader's own label is a Streamlit widget label, not one of our
+   eyebrows, so it arrives in the default body face at body size and the
+   rail reads as two typographies.  Restyled into the eyebrow vocabulary so
+   "Dataset", "Test dataset (CSV)" and "Classifier" line up as one column of
+   labels. */
+div[data-testid="stFileUploader"] label,
+div[data-testid="stFileUploader"] [data-testid="stMarkdownLabel"] {
+    font-size: .66rem; font-weight: 700; letter-spacing: .16em;
+    text-transform: uppercase; color: #9CA3AF; margin-bottom: .45rem;
+}
+section[data-testid="stSidebar"] div[data-testid="stFileUploader"] {
+    margin-bottom: .3rem;
+}
+/* Streamlit's dropzone reserves a tall fixed band for the drag-and-drop
+   hint.  In a rail that already carries a label above it and a status line
+   below it, that band is most of the sidebar's empty space - tightened to
+   the minimum the instructions still need. */
+section[data-testid="stSidebar"] div[data-testid="stFileUploaderDropzone"] {
+    min-height: 0; padding: .7rem .7rem .6rem;
+}
+section[data-testid="stSidebar"]
+    div[data-testid="stFileUploaderDropzoneInstructions"] {
+    font-size: .74rem; padding-top: .3rem;
+}
+section[data-testid="stSidebar"] div[data-testid="stButton"] {
+    margin-bottom: .9rem;
+}
+
 /* ---------- responsive -------------------------------------------------
    Streamlit's block container keeps 80px padding per side, so usable content
    width ~= viewport - 256 (sidebar) - 160 (padding).  A half-screen 912px
