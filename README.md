@@ -8,6 +8,22 @@ evaluated with the six metrics the assignment specifies.
 
 ---
 
+## Live Streamlit app
+
+**`<STREAMLIT_URL>`**
+
+Deployed from this repository on Streamlit Community Cloud, on Python 3.11.
+The build serves the committed `model/*.joblib` and
+`artifacts/preprocessor.joblib`: a CSV uploaded to it is scored, never
+trained on.
+
+## BITS Virtual Lab
+
+Screenshots of the application running on the BITS Virtual Lab are in the
+submitted PDF. This repository carries the code and its outputs only.
+
+---
+
 ## a. Problem statement
 
 An e-commerce platform wants to know, from a visitor's browsing behaviour
