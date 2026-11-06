@@ -261,9 +261,18 @@ git clone https://github.com/Thrishasivasakthi/ML_Assignment_2
 cd ML_Assignment_2
 pip install -r requirements.txt
 python train.py            # refits everything, rewrites metrics*.csv
+python tests/check_pipeline.py   # 17 offline checks, no browser needed
 python make_readme_tables.py --all   # reprints the three tables above
 streamlit run app.py       # launches the application
 ```
+
+`tests/check_pipeline.py` asserts that the saved artifacts reproduce every
+cell of `metrics.csv` to within 1e-9, that the validation layer refuses the
+malformed files it should refuse and accepts shuffled, surplus-column and
+`0.0/1.0`-spelled ones, and - by parsing the source with `ast` rather than
+searching for text - that no file outside `train.py` fits anything. It
+imports only packages already pinned in `requirements.txt`, so it needs no
+extra environment.
 
 `random_state = 42` is set on the split, on the cross-validation splitter and
 on every stochastic estimator, so a clean run reproduces `metrics.csv`,

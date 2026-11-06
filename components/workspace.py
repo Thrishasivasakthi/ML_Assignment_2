@@ -30,7 +30,7 @@ import streamlit as st
 from components.layout import empty_state, inject_css
 from components.sidebar import render_sidebar
 # config is reached through core, which installs the joblib/loky fix first.
-from config import FEATURES, MODEL_KEYS, MODEL_LABELS, TARGET
+from config import FEATURES, MODEL_KEYS, MODEL_LABELS, TARGET, coerce_target
 from core.evaluation import comparison_frame, score_all
 from core.facts import dataset_facts as collect_facts
 from core.inference import BASE_DIR, PREPROCESSOR_PATH, load_artifacts, model_path
@@ -222,7 +222,10 @@ def evaluate_all(df):
 def _score_dataset(df, artifact_stamp):
     """The single scoring path.  See evaluate_all() for the cache rationale."""
     preprocessor, models = get_artifacts()
-    y_true = df[TARGET].astype(int).values
+    # Labels are coerced, not assumed: 0/1, 0.0/1.0, True/False and yes/no
+    # all reach here as the same 0/1 integers.  Anything unreadable would
+    # already have been rejected by validate_dataset on this page.
+    y_true = coerce_target(df[TARGET]).astype("int64").values
 
     metrics, preds, probas = score_all(
         models, preprocessor, df, y_true, MODEL_KEYS

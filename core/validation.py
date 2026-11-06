@@ -21,9 +21,19 @@ Nothing here touches the models, so it is safe to call before scoring.
 import numpy as np
 import pandas as pd
 
-from config import CATEGORICAL_FEATURES, FEATURES, NUMERIC_FEATURES, TARGET
+from config import (
+    CATEGORICAL_FEATURES,
+    FEATURES,
+    NUMERIC_FEATURES,
+    TARGET,
+    coerce_target,
+)
 
 MIN_ROWS = 2
+
+# How many offending values to name in a message, so a file with a thousand
+# bad rows does not produce a thousand-line error.
+SAMPLE = 5
 
 
 def validate_dataset(df):
@@ -31,6 +41,11 @@ def validate_dataset(df):
 
     Checks are ordered from "nothing else is checkable" outward, so each
     early return only fires when continuing would be pointless.
+
+    Column ORDER and extra columns are deliberately not checked: the app
+    selects features by name, so a shuffled file and a file with three
+    surplus columns are both fine - and saying otherwise would be a false
+    alarm.
     """
     if not isinstance(df, pd.DataFrame):
         return ["The file could not be parsed as a table."]
@@ -52,6 +67,13 @@ def validate_dataset(df):
         )
         return problems
 
+    if len(df) == 0:
+        problems.append(
+            "The file has a header but no data rows, so there is nothing to "
+            "evaluate."
+        )
+        return problems
+
     if len(df) < MIN_ROWS:
         problems.append(
             f"Need at least {MIN_ROWS} rows to evaluate; the file has {len(df)}."
@@ -59,14 +81,19 @@ def validate_dataset(df):
         return problems
 
     # ------------------------------------------------------ target column
-    # Coerce first: a round-trip through Excel often turns 0/1 into 0.0/1.0,
-    # which must not be rejected as an invalid label.
-    tgt = pd.to_numeric(df[TARGET], errors="coerce")
+    # Accepts 0/1, 0.0/1.0, True/False and yes/no in either case - see
+    # config.coerce_target.  Anything left unread is reported by value, so
+    # the user can see WHICH rows the app refused to interpret.
+    tgt = coerce_target(df[TARGET])
 
     if tgt.isna().any():
+        bad = df[TARGET][tgt.isna()].astype(str).str.strip()
+        shown = ", ".join(f"`{v}`" for v in bad.unique()[:SAMPLE])
+        more = "" if bad.nunique() <= SAMPLE else ", ..."
         problems.append(
             f"`{TARGET}` has {int(tgt.isna().sum())} value(s) that are not "
-            "numeric. Expected 0 or 1."
+            f"readable as a purchase label: {shown}{more}. "
+            "Expected 0 or 1 (also accepts 0.0/1.0, True/False, yes/no)."
         )
         return problems
 
@@ -112,10 +139,15 @@ def validate_dataset(df):
 
 
 def dataset_summary(df):
-    """Small dict of facts the UI shows next to the validation status."""
-    counts = df[TARGET].value_counts()
-    n_pos = int(counts.get(1, 0))
-    n_neg = int(counts.get(0, 0))
+    """Small dict of facts the UI shows next to the validation status.
+
+    The target goes through coerce_target rather than a raw value_counts:
+    a CSV whose Revenue is written True/False or yes/no would otherwise
+    count zero of each class and report a 0.0% conversion rate.
+    """
+    tgt = coerce_target(df[TARGET])
+    n_pos = int((tgt == 1).sum())
+    n_neg = int((tgt == 0).sum())
     total = int(len(df))
     return {
         "rows": total,
