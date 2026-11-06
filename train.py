@@ -469,7 +469,11 @@ def main():
         )
 
     baseline = pd.DataFrame(baseline_rows).set_index("model")[METRIC_KEYS]
-    baseline.to_csv(BASE_DIR / "metrics_baseline.csv")
+    # lineterminator="\n" matches .gitattributes (`.csv text eol=lf`).
+    # pandas would otherwise use os.linesep and hand Windows CRLF, after
+    # which git reports the file as modified even though not one value
+    # changed - a retrain that dirties the tree for a reason nobody can see.
+    baseline.to_csv(BASE_DIR / "metrics_baseline.csv", lineterminator="\n")
     print(f"\n  retained -> metrics_baseline.csv ({len(baseline)} rows)")
 
     # ======================= PHASE 2b :: TUNING ===========================
@@ -531,7 +535,7 @@ def main():
     # ---------------- comparison table (README section d) -------------
     results = pd.DataFrame(tuned_rows).set_index("model")
     results = results[METRIC_KEYS]
-    results.to_csv(BASE_DIR / "metrics.csv")
+    results.to_csv(BASE_DIR / "metrics.csv", lineterminator="\n")
 
     search_record = {
         "search": {
@@ -548,7 +552,11 @@ def main():
         "cv_f1": jsonable(cv_scores),
     }
     (BASE_DIR / "best_params.json").write_text(
-        json.dumps(search_record, indent=2) + "\n", encoding="utf-8"
+        # newline="\n" so the file on disk matches the LF copy git stores,
+        # rather than being rewritten as CRLF by text-mode translation.
+        json.dumps(search_record, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
     print("\n  retained -> best_params.json")
 
@@ -611,7 +619,7 @@ def main():
     overfit["baseline_gap"] = (
         overfit["baseline_train_accuracy"] - overfit["baseline_test_accuracy"]
     )
-    overfit.to_csv(BASE_DIR / "train_scores.csv", index=False)
+    overfit.to_csv(BASE_DIR / "train_scores.csv", index=False, lineterminator="\n")
     print(f"\n  retained -> train_scores.csv ({len(overfit)} rows)")
 
     # ---------------- requirement checks -----------------------------
