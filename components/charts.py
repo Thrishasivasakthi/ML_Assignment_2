@@ -79,7 +79,7 @@ def ranking_list(frame, metric, selected_key):
 def class_distribution(summary):
     """Two-bar split of purchasers vs non-purchasers.
 
-    Makes the 15.6% positive rate visible, which is the single fact that
+    Makes the minority positive rate visible, which is the single fact that
     explains why accuracy flatters every model here.
     """
     total = max(summary["rows"], 1)

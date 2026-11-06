@@ -14,7 +14,7 @@ import streamlit as st
 
 from components.charts import comparison_bars, metric_selector, ranking_list
 from components.layout import page_header, rule, section, stat_strip
-from components.notes import METRIC_DISAGREEMENT
+from components.notes import metric_disagreement
 from components.tables import comparison_table, metric_leaders_table
 from components.workspace import best_by, boot, evaluate_all, open_workspace, require_scored
 from config import METRIC_KEYS, MODEL_LABELS
@@ -26,13 +26,14 @@ result = evaluate_all(df)
 require_scored(result, selected_key)
 
 frame = result["comparison"]
+summary = result["summary"]
 
 page_header(
     "Model Benchmarking",
     "Five classifiers, one held-out set",
     "Logistic Regression, Decision Tree, KNN, Gaussian Naive Bayes and SVM "
-    "scored on exactly the same 2,441 held-out sessions with exactly the "
-    "weights train.py saved. Nothing here is refitted.",
+    f"scored on exactly the same {summary['rows']:,} held-out sessions with "
+    "exactly the weights train.py saved. Nothing here is refitted.",
 )
 
 # Leader on each metric - answers "who wins what" at a glance.
@@ -107,11 +108,12 @@ st.markdown(
     section("05", "Why the metrics disagree", "and which one to trust here"),
     unsafe_allow_html=True,
 )
-st.markdown(METRIC_DISAGREEMENT)
+st.markdown(metric_disagreement(frame))
 
 st.markdown(
     '<div class="s2s-baseline"><b>Why MCC is the deciding metric:</b> a model '
-    "that always answers &ldquo;No purchase&rdquo; reaches <b>84.4% accuracy</b> "
+    f"that always answers &ldquo;No purchase&rdquo; reaches "
+    f"<b>{summary['always_no_accuracy'] * 100:.1f}% accuracy</b> "
     "and <b>0 MCC</b>. MCC cannot be inflated that way, which is why the "
     "assignment requires it alongside accuracy rather than in place of it.</div>",
     unsafe_allow_html=True,

@@ -43,7 +43,7 @@ import streamlit as st
 from components.charts import comparison_bars, metric_selector
 from components.layout import eyebrow, page_header, rule, section, stat_strip
 from components.metric_cards import baseline_note, kpi_tiles, metric_cards
-from components.notes import METRIC_DISAGREEMENT
+from components.notes import metric_disagreement
 from components.tables import comparison_table, confusion_block, report_table
 from components.workspace import (
     best_by,
@@ -54,9 +54,6 @@ from components.workspace import (
 )
 from config import MODEL_LABELS
 from core.evaluation import confusion_counts
-
-# Always-No baseline on this dataset: the yardstick accuracy is judged against.
-ALWAYS_NO_ACCURACY = 0.844
 
 boot("Session2Shop | Overview")
 
@@ -144,11 +141,12 @@ st.markdown(
 )
 
 metric_cards(metrics)
-baseline_note()
+baseline_note(summary["always_no_accuracy"])
 
 st.caption(
     f"**Accuracy {metrics['accuracy']:.4f}** against an always-No baseline of "
-    f"**84.4%** - a lead of {(metrics['accuracy'] - ALWAYS_NO_ACCURACY) * 100:+.1f} "
+    f"**{summary['always_no_accuracy'] * 100:.1f}%** - a lead of "
+    f"{(metrics['accuracy'] - summary['always_no_accuracy']) * 100:+.1f} "
     f"points. MCC **{metrics['mcc']:.4f}** is the figure that survives the "
     "imbalance."
 )
@@ -176,7 +174,8 @@ with right:
 st.caption(
     f"**{tp:,}** true positives and **{tn:,}** true negatives; "
     f"**{fp:,}** false alarms and **{fn:,}** real purchasers missed. "
-    "On a 15.6% positive class the second pair is what costs money."
+    f"On a {summary['conversion_rate'] * 100:.1f}% positive class the second "
+    "pair is what costs money."
 )
 
 # ------------------------------------------------------- 03 all five models
@@ -203,7 +202,7 @@ if mcc_leader:
     )
 
 with st.expander("Why the metrics disagree"):
-    st.markdown(METRIC_DISAGREEMENT)
+    st.markdown(metric_disagreement(frame))
 
 st.markdown(rule(), unsafe_allow_html=True)
 st.markdown(

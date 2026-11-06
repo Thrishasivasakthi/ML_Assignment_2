@@ -33,10 +33,6 @@ METRIC_INFO = {
     "mcc": "Correlation between prediction and truth",
 }
 
-# A model that always answers "No purchase" - the yardstick every metric on
-# this imbalanced dataset has to be judged against.
-BASELINE_ACCURACY = 0.844
-
 
 CSS = """
 <style>

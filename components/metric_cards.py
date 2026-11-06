@@ -7,7 +7,7 @@ requirement, so they appear on Overview as well as on Model Explorer.
 
 import streamlit as st
 
-from components.layout import BASELINE_ACCURACY, METRIC_INFO, METRIC_LABELS
+from components.layout import METRIC_INFO, METRIC_LABELS
 
 
 def metric_cards(metrics):
@@ -26,12 +26,17 @@ def metric_cards(metrics):
     st.markdown(f'<div class="s2s-cards">{cards}</div>', unsafe_allow_html=True)
 
 
-def baseline_note():
-    """Why accuracy alone is not enough on an 84.4% imbalanced dataset."""
+def baseline_note(always_no_accuracy):
+    """Why accuracy alone is not enough on a majority-class dataset.
+
+    always_no_accuracy comes from core.validation.dataset_summary, i.e. the
+    larger class share of the file that is actually loaded - so an uploaded
+    CSV with a different balance quotes the baseline that belongs to it.
+    """
     st.markdown(
         '<div class="s2s-baseline"><b>Baseline context:</b> a classifier that '
-        f"always predicts &ldquo;No purchase&rdquo; scores "
-        f"<b>{BASELINE_ACCURACY * 100:.1f}% accuracy</b> on this dataset "
+        "always predicts &ldquo;No purchase&rdquo; scores "
+        f"<b>{always_no_accuracy * 100:.1f}% accuracy</b> on this dataset "
         "without learning anything &mdash; which is why recall, F1 and MCC "
         "are reported alongside accuracy.</div>",
         unsafe_allow_html=True,

@@ -123,6 +123,11 @@ def dataset_summary(df):
         "purchasers": n_pos,
         "non_purchasers": n_neg,
         "conversion_rate": (n_pos / total) if total else 0.0,
+        # The yardstick accuracy is judged against: a classifier that always
+        # answers "No purchase" simply takes the larger class.  Computed from
+        # the loaded file rather than quoted, so an uploaded CSV with a
+        # different class balance gets the baseline that belongs to IT.
+        "always_no_accuracy": (max(n_pos, n_neg) / total) if total else 0.0,
         "numeric_features": len(NUMERIC_FEATURES),
         "categorical_features": len(CATEGORICAL_FEATURES),
     }

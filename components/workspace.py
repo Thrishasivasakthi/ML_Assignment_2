@@ -22,6 +22,8 @@ watcher reloads the module, which is precisely when we would want the models
 re-read from disk.
 """
 
+import json
+
 import pandas as pd
 import streamlit as st
 
@@ -30,7 +32,8 @@ from components.sidebar import render_sidebar
 # config is reached through core, which installs the joblib/loky fix first.
 from config import FEATURES, MODEL_KEYS, MODEL_LABELS, TARGET
 from core.evaluation import comparison_frame, score_all
-from core.inference import load_artifacts
+from core.facts import dataset_facts as collect_facts
+from core.inference import BASE_DIR, load_artifacts
 from core.validation import dataset_summary, validate_dataset
 
 _ARTIFACTS = None
@@ -48,6 +51,107 @@ def get_artifacts():
     if _ARTIFACTS is None:
         _ARTIFACTS = load_artifacts()
     return _ARTIFACTS
+
+
+def _files_stamp(*paths):
+    """mtime+size of the data files, used as a cache key.
+
+    st.cache_data keys on the function body and its arguments, not on the
+    contents of a file the function reads.  Passing the stamp means that
+    re-running train.py invalidates the cached numbers immediately instead
+    of leaving the app serving the previous run's figures until someone
+    restarts the server.
+    """
+    parts = []
+    for path in paths:
+        try:
+            stat = path.stat()
+        except OSError:
+            parts.append(f"{path.name}:missing")
+        else:
+            parts.append(f"{path.name}:{stat.st_mtime_ns}:{stat.st_size}")
+    return "|".join(parts)
+
+
+@st.cache_data(show_spinner=False)
+def _cached_facts(stamp):
+    """Correlations, split sizes and class ratios, computed from disk."""
+    return collect_facts()
+
+
+def facts():
+    """Cached wrapper - call this from a page."""
+    return _cached_facts(
+        _files_stamp(
+            BASE_DIR / "raw" / "online_shoppers_intention.csv",
+            BASE_DIR / "train_data.csv",
+            BASE_DIR / "test_data.csv",
+        )
+    )
+
+
+@st.cache_data(show_spinner=False)
+def train_scores_map(stamp):
+    """{model key: {train_accuracy, test_accuracy, gap}} from train_scores.csv.
+
+    Returns {} when the file is absent so a missing artefact degrades to
+    "no overfitting sentence" rather than a red exception box.
+    """
+    path = BASE_DIR / "train_scores.csv"
+    if not path.exists():
+        return {}
+    df = pd.read_csv(path)
+    key_of = {label: key for key, label in MODEL_LABELS.items()}
+    out = {}
+    for _, row in df.iterrows():
+        key = key_of.get(row.get("model"))
+        if key is None:
+            continue
+        out[key] = {
+            "train_accuracy": float(row["train_accuracy"]),
+            "test_accuracy": float(row["test_accuracy"]),
+            "gap": float(row["gap"]),
+        }
+    return out
+
+
+def train_scores():
+    """Cached wrapper - call this wherever an overfitting claim is made."""
+    return train_scores_map(_files_stamp(BASE_DIR / "train_scores.csv"))
+
+
+@st.cache_data(show_spinner=False)
+def _cached_best_params(stamp):
+    path = BASE_DIR / "best_params.json"
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def best_params():
+    """The tuning record train.py wrote: search definition + winners.
+
+    Read from disk rather than restated, so the Methodology page quotes the
+    same scoring function, fold count and grids the search actually used.
+    """
+    return _cached_best_params(_files_stamp(BASE_DIR / "best_params.json"))
+
+
+@st.cache_data(show_spinner=False)
+def _cached_baseline(stamp):
+    path = BASE_DIR / "metrics_baseline.csv"
+    if not path.exists():
+        return None
+    return pd.read_csv(path).set_index("model")
+
+
+def baseline_metrics():
+    """The untuned (sklearn defaults) table, for before/after reporting.
+
+    Returns None when metrics_baseline.csv is absent, so callers can skip
+    the comparison rather than crash on it.
+    """
+    return _cached_baseline(_files_stamp(BASE_DIR / "metrics_baseline.csv"))
 
 
 def open_workspace(validate=True):

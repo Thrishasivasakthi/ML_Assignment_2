@@ -18,17 +18,20 @@ import streamlit as st
 from components.charts import comparison_bars, metric_selector
 from components.layout import page_header, rule, section, stat_strip
 from components.metric_cards import baseline_note, metric_cards
-from components.notes import MODEL_NOTES
+from components.notes import model_note
 from components.tables import comparison_table
 from components.workspace import (
     best_by,
     boot,
     evaluate_all,
+    facts,
     get_artifacts,
     open_workspace,
     require_scored,
+    train_scores,
 )
-from config import METRIC_KEYS, MODEL_KEYS, MODEL_LABELS
+from config import CATEGORICAL_FEATURES, FEATURES, METRIC_KEYS, MODEL_KEYS, MODEL_LABELS
+from core.inference import encoded_width
 
 # Hyperparameters worth surfacing; anything not present on the estimator is
 # skipped rather than shown as a blank row.
@@ -47,11 +50,16 @@ df, source_name, selected_key = open_workspace(validate=True)
 result = evaluate_all(df)
 require_scored(result, selected_key)
 
-label = MODEL_LABELS[selected_key]
-note = MODEL_NOTES[selected_key]
 frame = result["comparison"]
+label = MODEL_LABELS[selected_key]
+# Generated from the live frame, the retained train_scores.csv and the
+# correlations computed by core.facts - never written down by hand.
+note = model_note(
+    selected_key, frame, train_scores(), facts()["correlations"]
+)
 metrics = result["metrics"][selected_key]
 y_true, y_pred = result["y_true"], result["preds"][selected_key]
+summary = result["summary"]
 
 page_header(
     "Model Explorer",
@@ -82,12 +90,14 @@ stat_strip(
 # ------------------------------------------------------------ 01 six metrics
 st.markdown(section("01", "The six required metrics", label), unsafe_allow_html=True)
 metric_cards(metrics)
-baseline_note()
+baseline_note(summary["always_no_accuracy"])
 
 st.caption(
-    f"Read against the always-No baseline of **84.4% accuracy**. This model's "
-    f"lead is **{(metrics['accuracy'] - 0.844) * 100:+.1f} points**, and its "
-    f"MCC is **{metrics['mcc']:.4f}** against the baseline's **0**."
+    f"Read against the always-No baseline of "
+    f"**{summary['always_no_accuracy'] * 100:.1f}% accuracy**. This model's "
+    f"lead is **{(metrics['accuracy'] - summary['always_no_accuracy']) * 100:+.1f}"
+    f" points**, and its MCC is **{metrics['mcc']:.4f}** against the "
+    "baseline's **0**."
 )
 
 # ------------------------------------------------------ 02 how to read it
@@ -151,6 +161,8 @@ preprocessor, models = get_artifacts()
 estimator = models[selected_key]
 params = estimator.get_params()
 
+n_numeric, n_onehot, n_total = encoded_width(preprocessor)
+
 cfg_rows = []
 for name in PARAM_FOCUS[selected_key]:
     if name not in params:
@@ -170,8 +182,9 @@ st.markdown(
 )
 
 st.caption(
-    "17 input features become **74 columns** after preprocessing: 10 numeric "
-    "columns standardised, 64 one-hot columns from the 7 nominal categories. "
+    f"{len(FEATURES)} input features become **{n_total} columns** after "
+    f"preprocessing: {n_numeric} numeric columns standardised, {n_onehot} "
+    f"one-hot columns from the {len(CATEGORICAL_FEATURES)} nominal categories. "
     "The preprocessor was fitted on the training split only."
 )
 

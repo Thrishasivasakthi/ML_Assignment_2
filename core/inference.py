@@ -52,3 +52,19 @@ def predict(model, preprocessor, df):
     y_pred = model.predict(X_t)
     y_proba = model.predict_proba(X_t)[:, 1]
     return y_pred, y_proba
+
+
+def encoded_width(preprocessor):
+    """(numeric columns, one-hot columns, total) the fitted transformer emits.
+
+    Read from the fitted OneHotEncoder's own category lists rather than
+    recomputed, so the "10 + 64 = 74 columns" claim in the UI is the width
+    the saved preprocessor actually produces - not a number typed into a
+    sentence that happens to be next to it.
+    """
+    from config import NUMERIC_FEATURES
+
+    encoder = preprocessor.named_transformers_["cat"].named_steps["onehot"]
+    n_numeric = len(NUMERIC_FEATURES)
+    n_onehot = int(sum(len(c) for c in encoder.categories_))
+    return n_numeric, n_onehot, n_numeric + n_onehot

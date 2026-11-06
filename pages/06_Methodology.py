@@ -12,16 +12,26 @@ never refits anything.
 import streamlit as st
 
 from components.layout import chip, page_header, rule, section, stat_strip
-from components.notes import MODEL_NOTES
-from components.workspace import boot, evaluate_all, get_artifacts, open_workspace
+from components.notes import MODEL_FAMILY
+from components.workspace import (
+    baseline_metrics,
+    best_params,
+    boot,
+    evaluate_all,
+    facts,
+    get_artifacts,
+    open_workspace,
+)
 from config import (
     CATEGORICAL_FEATURES,
+    FEATURES,
     MODEL_KEYS,
     MODEL_LABELS,
     NUMERIC_FEATURES,
     RANDOM_STATE,
     TEST_SIZE,
 )
+from core.inference import encoded_width
 
 # Per-feature descriptions.  The numeric comments mirror config.py so the two
 # cannot drift; the categorical ones are documented here because config.py
@@ -46,20 +56,36 @@ FEATURE_DESCRIPTIONS = {
     "Weekend": "Whether the visit fell on a weekend.",
 }
 
-MODEL_CONFIG = {
-    "logistic_regression": "LogisticRegression(max_iter=1000, random_state=42)",
-    "decision_tree": "DecisionTreeClassifier(random_state=42) - grown fully, unpruned",
-    "knn": "KNeighborsClassifier(n_neighbors=5)",
-    "naive_bayes": "GaussianNB() - sklearn defaults",
-    "svm": "SVC(kernel='rbf', probability=True, random_state=42)",
-}
-
 boot("Session2Shop | Methodology")
 
 df, source_name, selected_key = open_workspace(validate=True)
 result = evaluate_all(df)
 
 summary = result["summary"]
+frame = result["comparison"]
+background = facts()
+splits = background["splits"]
+balance = background["balance"]
+correlations = background["correlations"]
+
+# Construction is repr() of the SAVED estimator, so this table cannot drift
+# away from model/<key>.joblib after a retrain - it is read from the file
+# the application actually loads.
+preprocessor, models = get_artifacts()
+model_config = {key: repr(models[key]) for key in MODEL_KEYS}
+n_numeric, n_onehot, n_total = encoded_width(preprocessor)
+
+split_total = max(splits["train"] + splits["test"], 1)
+train_pct = 100.0 * splits["train"] / split_total
+test_pct = 100.0 * splits["test"] / split_total
+
+# Search definition, read from the record train.py wrote.
+search = (best_params() or {}).get("search") or {}
+cv_folds = search.get("cv_folds", "?")
+scoring = search.get("scoring", "?")
+
+# The untuned table, for the before/after clause in section 04.
+baseline = baseline_metrics()
 
 page_header(
     "Methodology",
@@ -70,10 +96,10 @@ page_header(
 
 stat_strip(
     [
-        ("Raw rows", "12,330"),
-        ("After de-duplication", "12,205"),
-        ("Training split", "9,764 (80%)"),
-        ("Held-out split", "2,441 (20%)"),
+        ("Raw rows", f"{splits['raw']:,}"),
+        ("After de-duplication", f"{splits['deduplicated']:,}"),
+        ("Training split", f"{splits['train']:,} ({train_pct:.0f}%)"),
+        ("Held-out split", f"{splits['test']:,} ({test_pct:.0f}%)"),
         ("Seed", f"{RANDOM_STATE}"),
     ]
 )
@@ -101,16 +127,20 @@ st.markdown(
 )
 
 st.caption(
-    "Chosen because it clears the brief's floor of 12 features and 500 "
-    "instances (17 features, 12,330 rows), is a genuine classification "
-    "problem rather than a regression relabelled, and carries a class "
-    "imbalance that makes accuracy alone misleading - which is why the "
-    "brief asks for MCC."
+    f"Chosen because it clears the brief's floor of 12 features and 500 "
+    f"instances ({len(FEATURES)} features, {splits['raw']:,} rows), is a "
+    "genuine classification problem rather than a regression relabelled, and "
+    "carries a class imbalance that makes accuracy alone misleading - which "
+    "is why the brief asks for MCC."
 )
 
 # -------------------------------------------------------------- 02 features
 st.markdown(
-    section("02", "The 17 features", "ten scaled, seven encoded"),
+    section(
+        "02",
+        f"The {len(FEATURES)} features",
+        f"{len(NUMERIC_FEATURES)} scaled, {len(CATEGORICAL_FEATURES)} encoded",
+    ),
     unsafe_allow_html=True,
 )
 
@@ -151,22 +181,29 @@ split_call = (
 
 PREPROCESS_STEPS = "".join(
     [
-        "<b>1. Remove exact duplicates.</b> 12,330 raw rows become 12,205; "
-        "125 duplicated sessions are dropped.<br>",
+        f"<b>1. Remove exact duplicates.</b> {splits['raw']:,} raw rows "
+        f"become {splits['deduplicated']:,}; {splits['duplicates']} duplicated "
+        "sessions are dropped.<br>",
         "<b>2. Split before any fitting.</b> ",
         chip(split_call, wrap=True),
-        " gives 9,764 training and 2,441 held-out rows, with the "
-        "84.4 / 15.6 class ratio preserved in both.<br>",
-        "<b>3. Fit the preprocessor on the training split only.</b> Ten numeric "
-        "columns are standardised; seven categorical columns are one-hot "
+        f" gives {splits['train']:,} training and {splits['test']:,} "
+        f"held-out rows, with the "
+        f"{100 * (1 - balance['train']):.1f} / "
+        f"{100 * balance['train']:.1f} class ratio preserved in both.<br>",
+        f"<b>3. Fit the preprocessor on the training split only.</b> "
+        f"{n_numeric} numeric columns are standardised; "
+        f"{len(CATEGORICAL_FEATURES)} categorical columns are one-hot "
         "encoded with ",
         chip('handle_unknown="ignore"'),
         " so a previously unseen category in an uploaded file becomes an "
-        "all-zero block instead of an error. The result is <b>74 columns</b>.",
+        f"all-zero block instead of an error. The result is <b>{n_total} "
+        "columns</b>.",
         "<br><b>4. Transform the held-out split</b> with that same fitted "
         "preprocessor - never refit it on test data.<br>",
-        "<b>5. Fit the five classifiers</b> on the transformed training rows, "
-        "then score the held-out rows once.",
+        "<b>5. Tune and fit the five classifiers.</b> GridSearchCV runs "
+        f"{cv_folds}-fold stratified cross-validation over the training rows "
+        f"only, scoring {scoring}; the winning parameters are then used for "
+        "one fit, and the held-out rows are scored exactly once.",
     ]
 )
 
@@ -195,19 +232,46 @@ for key in MODEL_KEYS:
     sel = ' class="sel"' if key == selected_key else ""
     rows.append(
         f"<tr{sel}><td class='l'>{MODEL_LABELS[key]}</td>"
-        f"<td class='l'>{chip(MODEL_CONFIG[key])}</td>"
-        f"<td class='l' style='color:#6B7280'>{MODEL_NOTES[key]['family']}</td></tr>"
+        f"<td class='l'>{chip(model_config[key], wrap=True)}</td>"
+        f"<td class='l' style='color:#6B7280'>{MODEL_FAMILY[key]}</td></tr>"
     )
 st.markdown(
     f'<table class="s2s-tbl">{head}{"".join(rows)}</table>', unsafe_allow_html=True
 )
 
+# Every figure in this caption is read back from the repository: the two
+# correlations from the de-duplicated raw data, the smoothing value from
+# best_params.json, and the two accuracies from the two metric files.
+nb_smooth = (best_params().get("best_params") or {}).get("naive_bayes", {}).get(
+    "var_smoothing", float("nan")
+)
+nb_auc_after = float(frame.loc["Naive Bayes", "auc"])
+nb_mcc_after = float(frame.loc["Naive Bayes", "mcc"])
+best_mcc = float(frame["mcc"].max())
+
+if baseline is not None and "Naive Bayes" in baseline.index:
+    nb_acc_before = float(baseline.loc["Naive Bayes", "accuracy"])
+    nb_acc_after = float(frame.loc["Naive Bayes", "accuracy"])
+    smoothing_clause = (
+        f" Raising `var_smoothing` to {nb_smooth} lifts accuracy from "
+        f"{nb_acc_before:.4f} at sklearn's default to {nb_acc_after:.4f} and "
+        f"AUC to {nb_auc_after:.4f} - a large gain that still leaves MCC at "
+        f"{nb_mcc_after:.4f} against the best model's {best_mcc:.4f}. "
+        "Smoothing mitigates the violated assumption; it does not remove it."
+    )
+else:
+    smoothing_clause = (
+        f" Its AUC is {nb_auc_after:.4f} and its MCC {nb_mcc_after:.4f}, "
+        f"against the best model's {best_mcc:.4f}."
+    )
+
 st.caption(
-    "Gaussian Naive Bayes is kept at sklearn's defaults. It scores poorly "
-    "because its independence assumption is violated by this data - "
-    "`BounceRates` and `ExitRates` correlate at 0.911 - "
-    "not because it was implemented incorrectly. Its AUC of 0.7498 shows the "
-    "ranking is still sound; only the 0.5 threshold is broken."
+    f"Gaussian Naive Bayes assumes its features are independent, and they "
+    f"are not: `BounceRates` and `ExitRates` correlate at "
+    f"{correlations['BounceRates~ExitRates']:.3f}, and `ProductRelated` with "
+    f"`ProductRelated_Duration` at "
+    f"{correlations['ProductRelated~ProductRelated_Duration']:.3f}, so the "
+    f"same evidence is counted twice." + smoothing_clause
 )
 
 # --------------------------------------------------------------- 05 metrics
@@ -218,7 +282,8 @@ st.markdown(
 st.markdown(
     '<div style="font-size:.93rem;color:#374151;line-height:1.8">'
     "<b>Accuracy</b> - share of rows labelled correctly. Misleading on its "
-    "own here: always answering &ldquo;No&rdquo; already reaches 84.4%.<br>"
+    f"own here: always answering &ldquo;No&rdquo; already reaches "
+    f"{summary['always_no_accuracy'] * 100:.1f}%.<br>"
     "<b>AUC</b> - area under the ROC curve. Measures how well the model "
     "ranks sessions by purchase likelihood, independent of the 0.5 cut-off.<br>"
     "<b>Precision</b> - of the sessions flagged as purchases, the share that "

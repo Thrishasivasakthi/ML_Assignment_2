@@ -1,8 +1,8 @@
 """
 pages/04_Error_Analysis.py - what the classifier gets wrong, and what it costs.
 
-On a dataset where only 15.6% of sessions end in a purchase, the two error
-types are not equivalent:
+On a dataset where only a small minority of sessions end in a purchase, the
+two error types are not equivalent:
 
     false alarm   a non-buyer was targeted as a buyer  -> wasted spend
     missed buyer  a real purchaser was ignored         -> lost revenue
@@ -14,7 +14,6 @@ import streamlit as st
 
 from components.layout import page_header, rule, section, stat_strip
 from components.metric_cards import metric_cards
-from components.notes import MODEL_NOTES
 from components.tables import confusion_block, report_table
 from components.workspace import boot, evaluate_all, open_workspace, require_scored
 from config import MODEL_KEYS, MODEL_LABELS
@@ -27,12 +26,12 @@ result = evaluate_all(df)
 require_scored(result, selected_key)
 
 label = MODEL_LABELS[selected_key]
-note = MODEL_NOTES[selected_key]
 
 y_true = result["y_true"]
 y_pred = result["preds"][selected_key]
 metrics = result["metrics"][selected_key]
 summary = result["summary"]
+frame = result["comparison"]
 
 tn, fp, fn, tp = confusion_counts(y_true, y_pred)
 n_pos = max(summary["purchasers"], 1)
@@ -169,10 +168,33 @@ st.markdown(
     f'<table class="s2s-tbl">{head}{"".join(rows)}</table>', unsafe_allow_html=True
 )
 
+# The caption below is generated from this table rather than written down:
+# which model recalls the most buyers, which flags the least reliably and
+# which balances the two all move whenever the models are retrained.
+scored = {k: result["metrics"][k] for k in MODEL_KEYS if result["metrics"].get(k)}
+recall_by = {k: m["recall"] for k, m in scored.items()}
+prec_by = {k: m["precision"] for k, m in scored.items()}
+f1_by = {k: m["f1"] for k, m in scored.items()}
+recall_leader = max(recall_by, key=recall_by.get)
+precision_laggard = min(prec_by, key=prec_by.get)
+f1_leader = max(f1_by, key=f1_by.get)
+
 st.caption(
-    "Naive Bayes sits at the extreme of this table: it misses almost nobody "
-    "(recall 0.9791) but raises a vast number of false alarms (precision "
-    "0.1756). SVM is the only model that keeps both columns moderate at once."
+    (
+        f"**{MODEL_LABELS[recall_leader]}** sits at the extreme of this "
+        f"table: it catches the most real purchasers (recall "
+        f"{recall_by[recall_leader]:.4f}) while its own purchase flags are "
+        f"the least reliable (precision {prec_by[recall_leader]:.4f}). "
+    )
+    if recall_leader == precision_laggard
+    else (
+        f"**{MODEL_LABELS[recall_leader]}** has the highest recall in this "
+        f"table ({recall_by[recall_leader]:.4f}); "
+        f"**{MODEL_LABELS[precision_laggard]}** has the lowest precision "
+        f"({prec_by[precision_laggard]:.4f}). "
+    )
+    + f"**{MODEL_LABELS[f1_leader]}** holds the best balance of the two, "
+    f"with the highest F1 ({f1_by[f1_leader]:.4f})."
 )
 
 # ------------------------------------------------------------ 05 the numbers
