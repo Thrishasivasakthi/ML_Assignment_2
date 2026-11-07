@@ -2,6 +2,8 @@
 
 **M.Tech (AIML) · Machine Learning · Assignment 2**
 
+**BITS Student ID: 2026AJ05968 **
+
 A Streamlit application that predicts whether an e-commerce browsing session
 ends in a purchase, using five classifiers trained on the same data and
 evaluated with the six metrics the assignment specifies.
@@ -10,7 +12,7 @@ evaluated with the six metrics the assignment specifies.
 
 ## Live Streamlit app
 
-**`<STREAMLIT_URL>`**
+**<https://mlassignment2-gaxh6vfj69kdfafdfnylnh.streamlit.app/>**
 
 Deployed from this repository on Streamlit Community Cloud, on Python 3.11.
 The build serves the committed `model/*.joblib` and
