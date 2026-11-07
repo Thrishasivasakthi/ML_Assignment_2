@@ -208,6 +208,16 @@ The grids were kept small on purpose (4 × 2 for Logistic Regression,
 3 × 3 × 2 for SVM), because a large grid on a 15.6% positive class fits the
 cross-validation noise rather than the signal.
 
+**Preprocessing order, recorded rather than glossed over.** The preprocessor
+is fitted on the whole training split **before** the search starts, so the CV
+validation folds inside `GridSearchCV` contribute to the scaling and encoding
+statistics slightly. The held-out test set is untouched by this: it is
+transformed once, after the search, by a preprocessor that never saw it.
+Re-running all five searches with the preprocessor **inside** each fold —
+`tests/cv_pipeline_check.py`, a few minutes because of the SVM grid — selected
+identical hyperparameters for all five models, so the reported results are
+unchanged.
+
 ### Comparison table — tuned (`metrics.csv`, what the app reports)
 
 | ML Model Name | Accuracy | AUC | Precision | Recall | F1 | MCC |
@@ -288,9 +298,10 @@ streamlit run app.py       # launches the application
 cell of `metrics.csv` to within 1e-9, that the validation layer refuses the
 malformed files it should refuse and accepts shuffled, surplus-column and
 `0.0/1.0`-spelled ones, and - by parsing the source with `ast` rather than
-searching for text - that no file outside `train.py` fits anything. It
-imports only packages already pinned in `requirements.txt`, so it needs no
-extra environment.
+searching for text - that only `train.py` and the CV comparison script
+`tests/cv_pipeline_check.py` fit anything, and never a file from the
+application. It imports only packages already pinned in
+`requirements.txt`, so it needs no extra environment.
 
 `random_state = 42` is set on the split, on the cross-validation splitter and
 on every stochastic estimator, so a clean run reproduces `metrics.csv`,

@@ -18,9 +18,12 @@ WHAT IT PROTECTS
    blanks in a numeric column, a header with no rows - and ACCEPTS the files
    it must accept: shuffled columns, surplus columns, and Revenue spelled
    0/1, 0.0/1.0, True/False or yes/no.
-3. Nothing outside train.py fits anything.  This is checked with the AST,
-   not with a text search, because a text search counts the words ".fit()"
-   inside comments and docstrings and would report false positives.
+3. Nothing outside train.py and the CV comparison script fits anything.
+   Checked with the AST, not with a text search, because a text search
+   counts the words ".fit()" inside comments and docstrings and would
+   report false positives.  The application itself - app.py, config.py,
+   pages/, components/, core/ - must never appear, whatever the exemption
+   list says.
 """
 
 import ast
@@ -48,9 +51,16 @@ from core.validation import dataset_summary, validate_dataset  # noqa: E402
 
 TOLERANCE = 1e-9
 
-# The single file allowed to fit.  Compared by NAME so a copy of train.py
-# in a subdirectory would still be caught.
-FIT_ALLOWED = {"train.py"}
+# The only two files allowed to fit, compared by NAME so a copy of either
+# in a subdirectory would still be caught:
+#   train.py              the single writer of model/ and artifacts/
+#   cv_pipeline_check.py  a dev-only script whose whole job is to re-run
+#                         the five searches with the preprocessor inside
+#                         the CV fold.  It is not imported by the
+#                         application, writes nothing, and is kept out of
+#                         this suite because it takes minutes.
+# Everything else - and every file in the application - must be clean.
+FIT_ALLOWED = {"train.py", "cv_pipeline_check.py"}
 
 # Attribute names that learn parameters from data.  fit_transform is
 # included because it fits on the way through - forgetting it would leave
@@ -365,7 +375,17 @@ def fit_calls(allowed=()):
     return offenders
 
 
-@check("no fitting outside train.py (AST scan)")
+def top_level(item):
+    """'tests\\cv_pipeline_check.py:12: .fit(' -> 'tests'.
+
+    'train.py:4: .fit(' -> 'train.py'.  The path part is everything before
+    the first colon; separators are normalised because this runs on
+    Windows as well as on Linux.
+    """
+    return item.split(":", 1)[0].replace("\\", "/").split("/")[0]
+
+
+@check("only train.py and the CV comparison script fit (AST scan)")
 def no_fit_outside_train():
     offenders = fit_calls(allowed=FIT_ALLOWED)
     require(
@@ -377,17 +397,29 @@ def no_fit_outside_train():
 @check("the fit scan is not passing vacuously")
 def scan_actually_works():
     # If the scanner never matched anything, the check above would pass on
-    # an empty list no matter what.  Dropping the exemption must therefore
-    # FIND train.py's four fits - proof the detector looks at real calls
-    # rather than, say, at comments.
-    with_train = fit_calls(allowed=())
+    # an empty list no matter what.  Dropping every exemption must therefore
+    # FIND the fits that are really there - proof the detector looks at real
+    # calls rather than, say, at comments.
+    everything = fit_calls(allowed=())
     require(
-        len(with_train) >= 4,
-        f"expected train.py's fits to be detected, found {with_train}",
+        len(everything) >= 4,
+        f"expected train.py's fits to be detected, found {everything}",
     )
     require(
-        all(item.startswith("train.py:") for item in with_train),
-        "with train.py unexempted, something ELSE also fits: " + str(with_train),
+        any(item.startswith("train.py:") for item in everything),
+        "with train.py unexempted its fits were not detected: "
+        + str(everything),
+    )
+    # ...and however generous the exemption list gets, the application
+    # must never be one of the files that fits.  That is the property this
+    # pair of checks exists to protect: the application scores with
+    # artifacts somebody else fitted.
+    in_application = [
+        item for item in everything if top_level(item) not in {"train.py", "tests"}
+    ]
+    require(
+        in_application == [],
+        "something in the application fits: " + str(in_application),
     )
 
 
