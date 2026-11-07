@@ -23,8 +23,3 @@ uci_download.zip
 
 # Course assignment brief - reference only, not part of the deliverable
 *.pdf
-
-# Working notes - tracked at some point, deliberately not part of the
-# deliverable.  Kept on disk, ignored here, so it cannot be re-added by a
-# careless `git add -A`.
-TODO.md

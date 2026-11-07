@@ -233,7 +233,21 @@ CSS = """
 .s2s-kpi.is-accent .s { color: #CCFBF1; }
 
 /* ---------- sidebar -------------------------------------------------- */
-section[data-testid="stSidebar"] { border-right: 1px solid #E5E7EB; }
+/* Streamlit pins the rail with an inline `width: 256px`.  min-width and
+   max-width are not in conflict with that - the used width is clamped to
+   min(max(min, width), max) - but they are the only levers we have: a
+   stylesheet `width` of ours would lose to an inline value outright, so the
+   bounds are what is left.  Verified in 1.46: inline 256px, computed
+   280px.  280px gives the uploader label and the classifier select a few
+   pixels of air at the rail's edge without eating into the content area,
+   which the .block-container rule below caps separately; the 300px ceiling
+   stops a future Streamlit from widening the inline value and running away
+   with the content area. */
+section[data-testid="stSidebar"] {
+    border-right: 1px solid #E5E7EB;
+    min-width: 280px !important;
+    max-width: 300px !important;
+}
 section[data-testid="stSidebar"] .s2s-eyebrow { margin-top: .2rem; }
 
 /* Streamlit derives the sidebar label of the ENTRY script from its filename.
@@ -262,13 +276,41 @@ div[data-testid="stFileUploader"] {
 }
 
 /* ---------- page chrome ----------------------------------------------
-   Streamlit's block container opens with 6rem of top padding, which leaves a
-   large empty band above the masthead on a page whose first element is
-   always a header.  Pulled up so the header sits just under the toolbar;
-   the sidebar rail is tightened for the same reason.  !important because
-   Streamlit declares the same property on the same selector in <head>. */
-.block-container { padding-top: 2.6rem !important; padding-bottom: 3.5rem; }
-section[data-testid="stSidebar"] .block-container { padding-top: 1.7rem !important; }
+   Two separate problems, solved in one rule.
+
+   VERTICAL.  Streamlit's own padding on this element is 6rem 1rem 10rem,
+   declared on a hashed emotion class rather than on .block-container, so a
+   page whose first element is always the masthead opens with 6rem of blank
+   band above it.  2.6rem puts the header just under the toolbar.
+
+   HORIZONTAL.  In the default centred layout Streamlit pins this element to
+   736px (.st-emotion-cache-1w723zb in 1.46) and centres it, so the content
+   never grows: measured against the main area it leaves 285px of blank
+   margin down each side at a 1540px window and 475px at 1920px, always
+   around a 704px column.  boot() now asks for layout="wide"; this rule
+   decides what that actually means: a 1320px cap, as wide as the seven-
+   column comparison table stays comfortably legible, and 3rem of side
+   padding in place of Streamlit's 1rem.  After: 1540px -> 1154px of content
+   behind a 48px gutter; 1920px -> 1224px behind 203px, which is 155px of
+   centring plus that same 48px.
+
+   !important because Streamlit declares its own padding on hashed emotion
+   classes (.st-emotion-cache-zy6yx3 in 1.46), so nothing of ours would win
+   on specificity - only on source order, which stops being true the moment
+   Streamlit injects a <style> after ours.  Streamlit 1.46 renders exactly
+   one .block-container and it lives inside stMain, so nothing else is
+   affected today; the sidebar line below is a guard, kept because without
+   it any Streamlit that DOES give the rail a block container would hand it
+   this rule's 3rem side padding and quietly cost the rail 3rem of usable
+   width. */
+.block-container {
+    padding: 2.6rem 3rem 3.5rem 3rem !important;
+    max-width: 1320px !important;
+}
+section[data-testid="stSidebar"] .block-container {
+    padding: 1.7rem 1.5rem 2.5rem 1.5rem !important;
+    max-width: 100% !important;
+}
 
 /* The uploader's own label is a Streamlit widget label, not one of our
    eyebrows, so it arrives in the default body face at body size and the
@@ -299,34 +341,49 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] {
 }
 
 /* ---------- responsive -------------------------------------------------
-   Streamlit's block container keeps 80px padding per side, so usable content
-   width ~= viewport - 256 (sidebar) - 160 (padding).  A half-screen 912px
-   window therefore leaves only ~486px, which crushes a six-across card row to
-   72px per card and makes the matrix cells overflow.  Breakpoints are keyed to
-   the content width each layout actually receives:
+   With layout="wide" the content is no longer pinned to Streamlit's 736px,
+   so the old arithmetic (viewport - 256 - 160) is wrong.  What a viewport
+   actually receives is now:
 
-     viewport >= 1400  ->  content >= ~985px   -> 6 cards across
-     1100 - 1400       ->  3 cards across
-     < 1100            ->  compact matrix + bars (matrix sits in a fixed
-                           Streamlit column, so it cannot shrink on its own)
-     < 760             ->  2 cards across
+       content = min(1320, viewport - 280 (sidebar) - 10 (scrollbar)) - 96 (padding)
+               = min(1224, viewport - 386)
+
+   giving 1920 -> 1224, 1440 -> 1054, 1280 -> 894, 1024 -> 638, 800 -> 414.
+
+   The breakpoints below are keyed to that content width rather than to the
+   viewport, because the content is what breaks:
+
+     >= 1401   content >= 1015   -> 6 metric cards across, ~166px each
+     <= 1400                       -> 3 cards across
+     <= 1200                       -> the section-02 columns stack (see below)
+     <= 1100                       -> compact table, matrix, bars and headline,
+                                      for the genuinely narrow cases
+     <=  900                       -> tighter table type and cell gutters, so
+                                      the 7-column comparison table stays
+                                      inside the text column
+     <=  760                       -> 2 cards across
 */
 @media (max-width: 1400px) {
     .s2s-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .s2s-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 1100px) {
-    /* Section 02's columns are too narrow side-by-side: the 5-column
-       classification report overflows its column and is clipped off-screen
-       (measured 364px of table in a 228px column). Stack them so the report
-       gets the full content width instead. */
+/* These columns stack at 1200 rather than at 1100, and that number is
+   measured rather than chosen.  Side by side they split the content about
+   46/54, and the classification report's table is 363px wide on its own; the
+   right-hand column only reaches 363px once the content is ~765px, which
+   this layout delivers at a viewport of ~1151.  1200 is the round number
+   above that with ~38px of margin, and below it each column takes the whole
+   content width, so the report cannot be clipped however narrow it gets. */
+@media (max-width: 1200px) {
     [data-testid="stHorizontalBlock"] { row-gap: 1.75rem !important; }
     [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
         flex: 1 1 100% !important;
         min-width: 100% !important;
     }
-
-    /* The 7-column comparison table measured 511px against 486px of content. */
+}
+@media (max-width: 1100px) {
+    /* The 7-column comparison table still measures ~457px at this smaller
+       font, against 414px of content at an 800px viewport. */
     .s2s-tbl { font-size: .82rem; }
     .s2s-tbl td.num { font-size: .8rem; }
 
@@ -341,6 +398,18 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] {
     .s2s-bar .nm { font-size: .79rem; }
 
     .s2s-masthead h1 { font-size: 2.2rem; }
+}
+/* Below a content width of ~843px the 7-column comparison table is wider
+   than the text column: it measures 457px even at .82rem, and at an 800px
+   viewport the content is only 414px.  Left alone the box runs 44px past the
+   right edge of every other element on the page, into the block's side
+   padding.  Tightening the type and the cell gutters here pulls it back to
+   ~390px so all seven columns stay inside the column with everything else. */
+@media (max-width: 900px) {
+    .s2s-tbl { font-size: .76rem; }
+    .s2s-tbl th { padding-left: 5px; padding-right: 5px; }
+    .s2s-tbl td { padding-left: 5px; padding-right: 5px; }
+    .s2s-tbl td.num { font-size: .74rem; }
 }
 @media (max-width: 760px) {
     .s2s-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }

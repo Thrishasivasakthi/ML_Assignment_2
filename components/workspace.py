@@ -41,7 +41,18 @@ _ARTIFACTS = None
 
 def boot(title):
     """First call on every page: page config, then the stylesheet."""
-    st.set_page_config(page_title=title, initial_sidebar_state="expanded")
+    # layout="wide" because the default centred layout pins the content to
+    # 736px however wide the window gets: at a 1540px viewport that leaves
+    # 285px of blank margin down each side of everything the reader came
+    # for, and at 1920px, 475px.  Choosing wide hands the width back to us;
+    # components/layout.py then sets the actual number (1320px) so the
+    # content stops growing at a point where a seven-column metric table is
+    # still legible rather than running to the far edge of a 4K monitor.
+    st.set_page_config(
+        page_title=title,
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
     inject_css()
 
 

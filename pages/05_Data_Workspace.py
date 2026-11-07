@@ -162,10 +162,15 @@ with left:
              "rescored later.",
     )
 with right:
+    # The only chip() call site that was going through st.caption, which
+    # escapes HTML by default - so this line printed its <span> tags as
+    # literal text.  unsafe_allow_html=True is the whole fix: every other
+    # call site already passes it to st.markdown.
     st.caption(
         f"Loaded from {chip(source_name or '-')}.<br>"
         f"Bundled reference: {chip('test_data.csv')}"
-        + ("" if source_name == BUNDLED_SOURCE else "")
+        + ("" if source_name == BUNDLED_SOURCE else ""),
+        unsafe_allow_html=True,
     )
 
 st.markdown(rule(), unsafe_allow_html=True)
