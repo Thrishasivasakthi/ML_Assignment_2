@@ -2,7 +2,7 @@
 
 **M.Tech (AIML) · Machine Learning · Assignment 2**
 
-**BITS Student ID: 2026AJ05968 **
+**BITS Student ID: 2026AJ05968**
 
 A Streamlit application that predicts whether an e-commerce browsing session
 ends in a purchase, using five classifiers trained on the same data and
