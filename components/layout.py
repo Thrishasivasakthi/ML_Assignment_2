@@ -59,7 +59,16 @@ CSS = """
     font-size: 1.02rem; color: #4B5563; max-width: 64ch;
     line-height: 1.6; margin: 0;
 }
-.s2s-stats { display: flex; flex-wrap: wrap; gap: 2.6rem; margin-top: .2rem; }
+/* Streamlit hangs a "#" anchor button off every h1 it renders.  The
+   headings here are page titles, not section links, so the button is
+   decoration that sits in the serif headline's line box and reads as an
+   unfinished heading. */
+[data-testid="stHeaderActionElements"] { display: none; }
+/* The masthead and the stat strip arrive as two separate Streamlit blocks,
+   and Streamlit puts no space between them at all - the gap was this rule's
+   own .2rem, i.e. 3px, which reads as the strip colliding with the lede.
+   1rem gives the intro paragraph room to end before the facts begin. */
+.s2s-stats { display: flex; flex-wrap: wrap; gap: 2.6rem; margin-top: 1rem; }
 .s2s-stat .k {
     font-size: .62rem; font-weight: 700; letter-spacing: .14em;
     text-transform: uppercase; color: #9CA3AF;
@@ -271,9 +280,10 @@ div[data-testid="stButton"] > button {
 div[data-testid="stButton"] > button:hover {
     border-color: #0F766E; color: #0F766E; background: #F0FDFA;
 }
-div[data-testid="stFileUploader"] {
-    background: #FFFFFF; border: 1px dashed #CBD5E1; border-radius: 10px;
-}
+/* The outer stFileUploader is deliberately left unboxed.  It used to carry
+   its own white fill and dashed border, which nested inside Streamlit's
+   dashed dropzone as two rectangles reading as a mistake; now only the
+   inner dropzone draws a border and the label sits cleanly above it. */
 
 /* ---------- page chrome ----------------------------------------------
    Two separate problems, solved in one rule.
@@ -310,6 +320,24 @@ div[data-testid="stFileUploader"] {
 section[data-testid="stSidebar"] .block-container {
     padding: 1.7rem 1.5rem 2.5rem 1.5rem !important;
     max-width: 100% !important;
+}
+/* Below a 1100px viewport that 48px of side padding is a large slice of a
+   small column, so it is halved.  Content becomes
+
+       viewport - 280 (sidebar) - 10 (scrollbar) - 48 (padding)
+             = viewport - 338
+
+   which is 1100 -> 762, 1024 -> 686, 800 -> 462 - each 48px more than the
+   3rem rule above hands back.  Longhand rather than the shorthand, because
+   the shorthand above also fixes the top and bottom padding and this block
+   must not touch those; later in the sheet, same specificity, so it wins.
+   The sidebar rule is more specific than this one and already asks for
+   1.5rem, so the rail is unaffected either way. */
+@media (max-width: 1100px) {
+    .block-container {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
 }
 
 /* The uploader's own label is a Streamlit widget label, not one of our
@@ -348,7 +376,14 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] {
        content = min(1320, viewport - 280 (sidebar) - 10 (scrollbar)) - 96 (padding)
                = min(1224, viewport - 386)
 
-   giving 1920 -> 1224, 1440 -> 1054, 1280 -> 894, 1024 -> 638, 800 -> 414.
+   giving 1920 -> 1224, 1440 -> 1054, 1280 -> 894, 1101 -> 715.
+
+   Below a 1100px viewport the side padding drops to 1.5rem (media query
+   above), so the -96 becomes -48 and content is viewport - 338:
+   1100 -> 762, 1024 -> 686, 800 -> 462.  The column therefore WIDENS by
+   48px as the window crosses 1100 downwards - a media query can only
+   step, not fade - and everything from there down gets more room than the
+   3rem rule would have given it.
 
    The breakpoints below are keyed to that content width rather than to the
    viewport, because the content is what breaks:
@@ -383,7 +418,7 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] {
 }
 @media (max-width: 1100px) {
     /* The 7-column comparison table still measures ~457px at this smaller
-       font, against 414px of content at an 800px viewport. */
+       font, against 462px of content at an 800px viewport. */
     .s2s-tbl { font-size: .82rem; }
     .s2s-tbl td.num { font-size: .8rem; }
 
@@ -399,12 +434,13 @@ section[data-testid="stSidebar"] div[data-testid="stButton"] {
 
     .s2s-masthead h1 { font-size: 2.2rem; }
 }
-/* Below a content width of ~843px the 7-column comparison table is wider
-   than the text column: it measures 457px even at .82rem, and at an 800px
-   viewport the content is only 414px.  Left alone the box runs 44px past the
-   right edge of every other element on the page, into the block's side
-   padding.  Tightening the type and the cell gutters here pulls it back to
-   ~390px so all seven columns stay inside the column with everything else. */
+/* The 7-column comparison table measures ~457px even at .82rem.  With the
+   1.5rem side padding below 1100 the content is viewport - 338, so it stops
+   fitting at a viewport of ~795, and every narrower width - down to the
+   760px breakpoint and past it - would otherwise run the box past the right
+   edge of every other element on the page, into the block's side padding.
+   Tightening the type and the cell gutters here pulls it back to ~390px so
+   all seven columns stay inside the column with everything else. */
 @media (max-width: 900px) {
     .s2s-tbl { font-size: .76rem; }
     .s2s-tbl th { padding-left: 5px; padding-right: 5px; }
