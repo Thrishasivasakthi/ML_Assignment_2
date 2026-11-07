@@ -279,7 +279,7 @@ git clone https://github.com/Thrishasivasakthi/ML_Assignment_2
 cd ML_Assignment_2
 pip install -r requirements.txt
 python train.py            # refits everything, rewrites metrics*.csv
-python tests/check_pipeline.py   # 17 offline checks, no browser needed
+python tests/check_pipeline.py   # 19 offline checks, no browser needed
 python make_readme_tables.py --all   # reprints the three tables above
 streamlit run app.py       # launches the application
 ```

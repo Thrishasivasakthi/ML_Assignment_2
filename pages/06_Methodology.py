@@ -33,6 +33,13 @@ from config import (
 )
 from core.inference import encoded_width
 
+# The offline suite, for the length of the list printed in section 07.  The
+# count on this page is len(CHECKS) rather than a literal, so it cannot be
+# left behind when a check is added - which is how "17" survived two new
+# checks.  Importing it runs nothing: the suite only executes under
+# `if __name__ == "__main__"`.
+from tests.check_pipeline import CHECKS
+
 # Per-feature descriptions.  The numeric comments mirror config.py so the two
 # cannot drift; the categorical ones are documented here because config.py
 # only flags how they are encoded.
@@ -332,6 +339,7 @@ st.code(
     "cd ML_Assignment_2\n"
     "pip install -r requirements.txt\n"
     "python train.py            # refits everything, rewrites metrics.csv\n"
+    f"python tests/check_pipeline.py   # {len(CHECKS)} offline checks, no browser\n"
     "streamlit run app.py       # launches this application",
     language="bash",
 )
@@ -339,8 +347,10 @@ st.code(
 st.caption(
     f"Seed {RANDOM_STATE} is set on the split and on every stochastic "
     "estimator, so a clean run reproduces metrics.csv exactly. The "
-    "application does not need this step - it loads the artifacts that are "
-    "already committed."
+    f"offline suite above is {len(CHECKS)} checks and must end in "
+    '"0 failed"; it needs no browser and re-runs nothing - it only reads '
+    "the artifacts already committed. The application does not need any "
+    "of this step - it loads those artifacts directly."
 )
 
 st.markdown(rule(), unsafe_allow_html=True)

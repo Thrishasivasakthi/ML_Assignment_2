@@ -124,6 +124,27 @@ def validate_dataset(df):
         elif np.isinf(coerced.fillna(0.0)).any():
             problems.append(f"Column `{col}` contains infinite values.")
 
+        # A blank is a DIFFERENT failure from a word that will not convert,
+        # and it needs its own message.  An empty cell coerces to NaN just as
+        # happily as "not-a-number" does, so before this check a CSV with
+        # holes in a numeric column validated completely clean: the file was
+        # accepted, StandardScaler then refused to transform it, and the user
+        # was handed a generic "could not be scored" that named nothing.
+        #
+        # Counted from the INPUT column, not from `coerced`, so the two
+        # counts do not overlap: `non_numeric` is what the input did not
+        # contain and `missing` is what it did contain but left empty.
+        #
+        # Reported, never filled in.  Imputing here would silently move the
+        # numbers the assignment is graded on, and would do it on a file the
+        # user believes is being evaluated as written.
+        missing = int(df[col].isna().sum())
+        if missing > 0:
+            problems.append(
+                f"Column `{col}` has {missing} missing value(s). "
+                "Fill or remove those rows before uploading."
+            )
+
     # -------------------------------------------------- categorical columns
     # These are one-hot encoded, so a blank becomes its own literal category
     # ("nan") and silently pollutes the feature space.

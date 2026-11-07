@@ -28,7 +28,7 @@
 # Both are verified rather than assumed.  Fresh virtualenvs were built on
 # Python 3.11.4 and on Python 3.12.10; in each, all nine pins resolved to
 # exactly the versions written below, tests/check_pipeline.py reported
-# 17 passed / 0 failed, and `python train.py` in a clean clone reproduced
+# 19 passed / 0 failed, and `python train.py` in a clean clone reproduced
 # metrics.csv, metrics_baseline.csv, train_scores.csv, best_params.json,
 # all five model/*.joblib and all five figures/*.png byte for byte.
 # ---------------------------------------------------------------------

@@ -15,9 +15,9 @@ WHAT IT PROTECTS
    silently changed a number, or a metrics.csv edited by hand, fails here.
 2. The validation layer behaves on the malformed files a real submission
    gets handed: missing columns, no target, one class, non-numeric values,
-   a header with no rows - and ACCEPTS the files it must accept: shuffled
-   columns, surplus columns, and Revenue spelled 0/1, 0.0/1.0, True/False or
-   yes/no.
+   blanks in a numeric column, a header with no rows - and ACCEPTS the files
+   it must accept: shuffled columns, surplus columns, and Revenue spelled
+   0/1, 0.0/1.0, True/False or yes/no.
 3. Nothing outside train.py fits anything.  This is checked with the AST,
    not with a text search, because a text search counts the words ".fit()"
    inside comments and docstrings and would report false positives.
@@ -38,6 +38,7 @@ from config import (  # noqa: E402  (path set up above)
     METRIC_KEYS,
     MODEL_KEYS,
     MODEL_LABELS,
+    NUMERIC_FEATURES,
     TARGET,
     coerce_target,
 )
@@ -189,6 +190,26 @@ def non_numeric():
     require("`BounceRates`" in problems[0], problems[0])
 
 
+@check("missing numeric value is reported with its column")
+def missing_numeric():
+    df = base_frame().copy()
+    df.loc[df.index[3], "PageValues"] = float("nan")
+    problems = validate_dataset(df)
+    require(len(problems) == 1, f"expected one problem, got {problems}")
+    require("`PageValues`" in problems[0], f"message does not name the column: {problems[0]}")
+    require(
+        "1 missing value(s)" in problems[0],
+        f"message does not count the holes: {problems[0]}",
+    )
+    # The point of the check: refuse, do not fill.  A validator that
+    # imputed would leave this frame looking usable and quietly change the
+    # scores the assignment is graded on.
+    require(
+        pd.isna(df.loc[df.index[3], "PageValues"]),
+        "the validator filled in the hole it was asked to report",
+    )
+
+
 @check("header with no data rows is refused")
 def header_only():
     df = base_frame().head(0)
@@ -211,6 +232,21 @@ def unreadable_target():
 # ---------------------------------------------------------------------------
 # 3. validation: files that must be accepted
 # ---------------------------------------------------------------------------
+@check("the bundled test_data.csv validates with no problems")
+def bundled_clean():
+    # The other way round: the file the submission actually ships must not
+    # trip the new missing-value rule.  Read fresh rather than through
+    # base_frame() so this check stands on its own if the helpers change.
+    df = pd.read_csv(REPO / "test_data.csv")
+    problems = validate_dataset(df)
+    require(problems == [], f"the bundled test file should be clean: {problems}")
+    for col in NUMERIC_FEATURES:
+        require(
+            int(df[col].isna().sum()) == 0,
+            f"test_data.csv has blanks in `{col}`",
+        )
+
+
 @check("shuffled column order is accepted unchanged")
 def shuffled_columns():
     df = base_frame()
@@ -356,31 +392,43 @@ def scan_actually_works():
 
 
 # ---------------------------------------------------------------------------
+# The suite, as a list.
+#
+# Deliberately at module level rather than inside main(): the Methodology
+# page prints the LENGTH of this list next to the command, so the number on
+# screen is read from the same object the run iterates over.  Typing the
+# count into two files is exactly how a suite grows to 19 checks while the
+# README still says 17.
+CHECKS = (
+    artifacts_match_metrics,
+    five_models,
+    missing_feature,
+    missing_target,
+    single_class,
+    non_numeric,
+    missing_numeric,
+    header_only,
+    unreadable_target,
+    bundled_clean,
+    shuffled_columns,
+    extra_columns,
+    revenue_int,
+    revenue_float,
+    revenue_bool,
+    revenue_words,
+    summary_consistent,
+    no_fit_outside_train,
+    scan_actually_works,
+)
+
+
 def main():
     print("=" * 72)
     print("Session2Shop offline pipeline checks")
     print(f"repository: {REPO}")
     print("=" * 72)
 
-    for fn in (
-        artifacts_match_metrics,
-        five_models,
-        missing_feature,
-        missing_target,
-        single_class,
-        non_numeric,
-        header_only,
-        unreadable_target,
-        shuffled_columns,
-        extra_columns,
-        revenue_int,
-        revenue_float,
-        revenue_bool,
-        revenue_words,
-        summary_consistent,
-        no_fit_outside_train,
-        scan_actually_works,
-    ):
+    for fn in CHECKS:
         fn()
 
     print("=" * 72)
