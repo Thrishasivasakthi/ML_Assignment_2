@@ -45,10 +45,19 @@ def render_sidebar():
     with st.sidebar:
         st.markdown(eyebrow("Dataset"), unsafe_allow_html=True)
 
-        # The reset control sits ABOVE the uploader on purpose.  To clear an
-        # upload you have to empty the uploader's own widget key, and
-        # Streamlit refuses that once the widget has been instantiated in
-        # this run - so the button has to be rendered first.
+        # The reset control sits ABOVE the uploader on purpose: the state has
+        # to be cleared before the widget reads it, or the cleared value is
+        # overwritten again in the same run.
+        #
+        # Clearing means DELETING the widget's key, never assigning None.
+        # st.file_uploader is registered with writes_allowed=False, so
+        # Streamlit raises StreamlitValueAssignmentNotAllowedError on ANY
+        # session-state assignment to its key - ordering cannot help,
+        # because the assignment and the widget instantiation happen in the
+        # same run either way.  Deleting removes the stored value without
+        # registering a "new state value", which is the condition the
+        # widget actually checks, so the uploader falls back to its own
+        # default of None instead of raising.
         reset = st.button(
             "Reset to bundled test_data.csv",
             key="use_bundled_button",
@@ -57,7 +66,7 @@ def render_sidebar():
                  "with the repository.",
         )
         if reset:
-            st.session_state["dataset_uploader"] = None
+            st.session_state.pop("dataset_uploader", None)
             if BUNDLED_TEST_CSV.exists():
                 st.session_state["df"] = pd.read_csv(BUNDLED_TEST_CSV)
                 st.session_state["source_name"] = BUNDLED_SOURCE
